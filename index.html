@@ -61,7 +61,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media print{body{background:#fff!important}.top,.search,.card,.gear,.menu,.drawerBox>button,.drawerBox>h3,.actions button{display:none!important}.drawer{position:static!important;background:#fff!important}.drawerBox{width:100%!important;height:auto!important;box-shadow:none!important}}
 </style>
 <style>
-.authGate{position:fixed;inset:0;background:linear-gradient(145deg,#0f172a,#134e4a);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px}.authCard{width:min(430px,100%);background:#fff;border-radius:24px;padding:26px;box-shadow:0 25px 70px #0005}.authBrand{text-align:center;font-size:28px;font-weight:900;letter-spacing:2px;color:#123}.authSub{text-align:center;color:#718096;margin:6px 0 22px}.authActions{display:flex;gap:10px;flex-direction:column;margin-top:16px}.authActions button{width:100%}.authError{display:none;background:#fff0f0;color:#b42318;border:1px solid #ffd0d0;border-radius:10px;padding:10px;margin-top:12px;font-size:13px}.authInfo{background:#f3f7f7;border-radius:12px;padding:11px;margin-top:14px;font-size:12px;color:#52606d}.logoutBtn{display:none;margin-left:8px}.sessionUser{font-size:12px;color:#5b6877;margin-top:12px;text-align:center}.authLink{background:none;color:#0f766e;font-weight:800;padding:5px}.locked{background:#f1f5f9!important;color:#475569!important}.pendingBox{display:none;background:#fff8e7;color:#8a5a00;border:1px solid #f3d58a;border-radius:12px;padding:11px;margin-top:12px;font-size:13px}
+.authGate{position:fixed;inset:0;background:linear-gradient(145deg,#0f172a,#134e4a);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px}.authCard{width:min(430px,100%);background:#fff;border-radius:24px;padding:26px;box-shadow:0 25px 70px #0005}.authBrand{text-align:center;font-size:28px;font-weight:900;letter-spacing:2px;color:#123}.authSub{text-align:center;color:#718096;margin:6px 0 22px}.authActions{display:flex;gap:10px;flex-direction:column;margin-top:16px}.authActions button{width:100%}.authError{display:none;background:#fff0f0;color:#b42318;border:1px solid #ffd0d0;border-radius:10px;padding:10px;margin-top:12px;font-size:13px}.authInfo{background:#f3f7f7;border-radius:12px;padding:11px;margin-top:14px;font-size:12px;color:#52606d}.logoutBtn{display:none;margin-left:8px}.sessionUser{font-size:12px;color:#5b6877;margin-top:12px;text-align:center}.dangerBtn{background:#fff0f0!important;color:#b42318!important;border:1px solid #ffd0d0!important}
 @media(max-width:560px){.authCard{padding:22px;border-radius:20px}.authBrand{font-size:24px}}
 </style></head>
 <body><script>
@@ -80,69 +80,28 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="authGate" class="authGate">
   <div class="authCard">
     <div class="authBrand">AYALVASIKAL</div>
-    <div class="authSub" id="authTitle">Secure Login</div>
-
-    <div id="loginPanel">
-      <div class="field">
-        <label>Code</label>
-        <input id="loginCode" type="text" autocomplete="username" placeholder="Enter your Code">
-      </div>
-
-      <div class="field" style="margin-top:10px">
-        <label>Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password">
-      </div>
-
+    <div class="authSub" id="authTitle">Login</div>
+    <div id="loginForm">
+      <div class="field"><label>Username</label><input id="loginUsername" type="text" autocomplete="username" placeholder="Enter username"></div>
+      <div class="field" style="margin-top:10px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password"></div>
       <div id="authError" class="authError"></div>
-
       <div class="authActions">
         <button class="primary" type="button" id="loginBtn">🔐 Login</button>
-        <button class="secondary" type="button" id="createAccountBtn">＋ Create Account</button>
+        <button class="secondary" type="button" id="showCreateBtn">＋ Create Account</button>
       </div>
+      <div class="authInfo">New users can create an account without email. Admin approval is required before the account can be used.</div>
     </div>
-
-    <div id="registerPanel" style="display:none">
-      <div class="field">
-        <label>Select Your Name</label>
-        <select id="registerName">
-          <option value="">Loading names...</option>
-        </select>
-      </div>
-
-      <div class="field" style="margin-top:10px">
-        <label>Code</label>
-        <input id="registerCode" class="locked" type="text" readonly placeholder="Code appears automatically">
-      </div>
-
-      <div class="field" style="margin-top:10px">
-        <label>Password</label>
-        <input id="registerPassword" type="password" autocomplete="new-password" placeholder="Minimum 8 characters">
-      </div>
-
-      <div class="field" style="margin-top:10px">
-        <label>Confirm Password</label>
-        <input id="registerPassword2" type="password" autocomplete="new-password" placeholder="Re-enter password">
-      </div>
-
-      <div id="registerError" class="authError"></div>
-      <div id="registerPending" class="pendingBox"></div>
-
+    <div id="createForm" class="hidden">
+      <div class="field"><label>Username</label><input id="regUsername" type="text" autocomplete="username" placeholder="Choose username"></div>
+      <div class="field" style="margin-top:10px"><label>Name</label><input id="regName" type="text" placeholder="Your name"></div>
+      <div class="field" style="margin-top:10px"><label>Password</label><input id="regPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <div class="field" style="margin-top:10px"><label>Confirm Password</label><input id="regPassword2" type="password" autocomplete="new-password" placeholder="Repeat password"></div>
+      <div id="regError" class="authError"></div>
       <div class="authActions">
-        <button class="primary" type="button" id="registerBtn">Create Account</button>
+        <button class="primary" type="button" id="registerBtn">Create</button>
         <button class="secondary" type="button" id="backLoginBtn">← Back to Login</button>
       </div>
-
-      <div class="authInfo">
-        Only names already saved in <b>Master → Name & Code</b> can create an account.
-        Code is automatic and cannot be changed.
-      </div>
     </div>
-
-    <div class="authInfo">
-      <b>Login:</b> Code + Password<br>
-      <b>Master Admin:</b> reserved Code <b>C0000</b>
-    </div>
-
     <div id="sessionUser" class="sessionUser"></div>
   </div>
 </div>
@@ -216,351 +175,102 @@ const URL='https://lfyejyjwyoovocsrolma.supabase.co';
 const KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G';
 const db=true; // REST connection: no external Supabase JS library required.
 const AUTH_BASE=URL+'/auth/v1';
-
 let currentUser=null;
-
-function authMessage(j){
-  return j?.msg || j?.message || j?.error_description || j?.error || 'Authentication failed';
+function authEmail(username, profile){
+  const u=String(username||'').trim().toLowerCase();
+  if(profile && profile.email) return String(profile.email).trim().toLowerCase();
+  if(u==='shafithuyyath') return 'myapp3111@gmail.com';
+  return u ? (u + '@ayalvasikal.local') : '';
 }
-
+function authMessage(j){ return j?.msg || j?.message || j?.error_description || j?.error || 'Authentication failed'; }
 async function authRequest(path,body){
   try{
-    const r=await fetch(AUTH_BASE+path,{
-      method:'POST',
-      headers:{
-        'apikey':KEY,
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify(body)
-    });
+    const r=await fetch(AUTH_BASE+path,{method:'POST',headers:{'apikey':KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({}));
-    return r.ok ? {data:j,error:null} : {data:null,error:j};
-  }catch(e){
-    return {data:null,error:e};
-  }
+    return r.ok?{data:j,error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
 }
-
-function authEmailByCode(code, profile){
-  if(profile && profile.email) return profile.email;
-
-  const c=String(code||'').trim().toUpperCase();
-
-  // Master Admin keeps the existing Supabase Auth email.
-  if(c==='C0000' || (profile && profile.username==='shafithuyyath')){
-    return 'myapp3111@gmail.com';
-  }
-
-  return c.toLowerCase()+'@login.ayalvasikal.local';
+async function authSignIn(username,password,profile){
+  const email=authEmail(username,profile);
+  if(!email) return {data:null,error:{message:'This user has no login email configured.'}};
+  return authRequest('/token?grant_type=password',{email,password});
 }
-
-async function authSignInByCode(code,password,profile){
-  return authRequest('/token?grant_type=password',{
-    email:authEmailByCode(code,profile),
-    password
-  });
+async function authSignUp(email,password,username){
+  return authRequest('/signup',{email,password,data:{username}});
 }
-
-function showAuthError(msg){
-  const e=$('authError');
-  if(!e)return;
-  e.textContent=msg;
-  e.style.display='block';
-}
-
-function clearAuthError(){
-  ['authError','registerError'].forEach(id=>{
-    const e=$(id);
-    if(e){
-      e.textContent='';
-      e.style.display='none';
-    }
-  });
-  const p=$('registerPending');
-  if(p){
-    p.textContent='';
-    p.style.display='none';
-  }
-}
-
+function showAuthError(msg){const e=$('authError');if(e){e.textContent=msg;e.style.display='block';}}
+function clearAuthError(){const e=$('authError');if(e){e.textContent='';e.style.display='none';}}
+function showRegError(msg){const e=$('regError');if(e){e.textContent=msg;e.style.display='block';}}
+function clearRegError(){const e=$('regError');if(e){e.textContent='';e.style.display='none';}}
+function showCreateForm(){clearAuthError();$('loginForm').classList.add('hidden');$('createForm').classList.remove('hidden');$('authTitle').textContent='Create Account';}
+function showLoginForm(){clearRegError();$('createForm').classList.add('hidden');$('loginForm').classList.remove('hidden');$('authTitle').textContent='Login';}
 function setLoggedIn(profile){
   currentUser=profile;
-  sessionStorage.setItem('ayalvasikal_user',JSON.stringify({
-    id:profile.id,
-    username:profile.username,
-    code:profile.code
-  }));
-  sessionStorage.setItem('ayalvasikal_code',profile.code||'');
+  sessionStorage.setItem('ayalvasikal_user',JSON.stringify({id:profile.id,username:profile.username}));
   $('authGate').style.display='none';
   $('logoutBtn').style.display='inline-block';
-  $('sessionUser').textContent='Logged in as '+profile.name+' · '+profile.role;
 }
-
 function setLoggedOut(){
-  currentUser=null;
-  sessionStorage.removeItem('ayalvasikal_user');
-  sessionStorage.removeItem('ayalvasikal_code');
-  sessionStorage.removeItem('ayalvasikal_access_token');
-  $('authGate').style.display='flex';
-  $('logoutBtn').style.display='none';
+  currentUser=null; sessionStorage.removeItem('ayalvasikal_user'); sessionStorage.removeItem('ayalvasikal_access_token');
+  $('authGate').style.display='flex'; $('logoutBtn').style.display='none';
 }
-
 async function loadCurrentProfile(username){
-  try{
-    const r=await apiSelect('user_profiles','id');
-    if(r.error)return null;
-    return (r.data||[]).find(
-      u=>String(u.username||'').toLowerCase()===String(username||'').toLowerCase()
-    )||null;
-  }catch(e){return null}
+  const r=await apiSelect('user_profiles');
+  if(r.error) return null;
+  return (r.data||[]).find(u=>String(u.username).toLowerCase()===String(username).toLowerCase())||null;
 }
-
-async function loadProfileByCode(code){
-  try{
-    const c=String(code||'').trim().toUpperCase();
-
-    const r=await fetch(
-      `${URL}/rest/v1/user_profiles?select=*&code=eq.${encodeURIComponent(c)}&limit=1`,
-      {headers:apiHeaders}
-    );
-
-    const j=await r.json();
-
-    if(r.ok && Array.isArray(j) && j.length){
-      return j[0];
-    }
-
-    // Reserved Master Admin fallback while C0000 is being assigned.
-    if(c==='C0000'){
-      const r2=await fetch(
-        `${URL}/rest/v1/user_profiles?select=*&username=eq.shafithuyyath&limit=1`,
-        {headers:apiHeaders}
-      );
-      const j2=await r2.json();
-      if(r2.ok && Array.isArray(j2) && j2.length) return j2[0];
-    }
-
-    return null;
-  }catch(e){
-    console.error(e);
-    return null;
-  }
-}
-
-async function authSignIn(){
+async function loginFlow(){
   clearAuthError();
-
-  const code=$('loginCode').value.trim().toUpperCase();
-  const password=$('loginPassword').value;
-
-  if(!code) return showAuthError('Please enter your Code.');
-  if(!password) return showAuthError('Please enter your Password.');
-
-  const profile=await loadProfileByCode(code);
-
-  if(!profile){
-    return showAuthError('This Code does not have an account.');
+  const username=$('loginUsername').value.trim(), password=$('loginPassword').value;
+  if(!username||!password)return showAuthError('Username and password are required.');
+  const p=await loadCurrentProfile(username);
+  if(!p)return showAuthError('Username not found. Create an account first.');
+  if((p.status||'approved')!=='approved') return showAuthError('Your account is waiting for Admin approval.');
+  const r=await authSignIn(username,password,p);
+  if(r.error){
+    const m=authMessage(r.error);
+    if(/invalid login credentials/i.test(m)) return showAuthError('Invalid password or the Supabase Auth account does not match this user.');
+    return showAuthError(m);
   }
-
-  const status=profile.status || 'approved';
-
-  if(status!=='approved'){
-    if(status==='pending'){
-      return showAuthError('Your account is waiting for Master Admin approval.');
-    }
-    return showAuthError('Your account is not approved.');
-  }
-
-  const auth=await authSignInByCode(code,password,profile);
-
-  if(auth.error){
-    return showAuthError(
-      authMessage(auth.error) || 'Invalid Code or Password.'
-    );
-  }
-
-  sessionStorage.setItem(
-    'ayalvasikal_access_token',
-    auth.data?.access_token || ''
-  );
-
-  setLoggedIn(profile);
+  sessionStorage.setItem('ayalvasikal_access_token',r.data?.access_token||'');
+  setLoggedIn(p);
+  $('sessionUser').textContent='Logged in as '+p.name+' · '+p.role;
   await load();
 }
-
-async function loadRegistrationMembers(){
-  const select=$('registerName');
-  if(!select)return;
-
-  select.innerHTML='<option value="">Loading names...</option>';
-
-  try{
-    const membersResult=await apiSelect('members','name');
-
-    if(membersResult.error){
-      select.innerHTML='<option value="">Unable to load names</option>';
-      return;
-    }
-
-    const members=membersResult.data||[];
-
-    const profilesResult=await apiSelect('user_profiles','code');
-    const profiles=profilesResult.data||[];
-
-    const usedCodes=new Set(
-      profiles
-        .filter(p=>p.code)
-        .map(p=>String(p.code).toUpperCase())
-    );
-
-    const available=members.filter(m=>{
-      const code=String(m.code||'').toUpperCase();
-      return code && !usedCodes.has(code);
-    });
-
-    select.innerHTML='<option value="">Select your name</option>';
-
-    available.forEach(m=>{
-      const o=document.createElement('option');
-      o.value=m.code;
-      o.dataset.name=m.name;
-      o.textContent=m.name+' — '+m.code;
-      select.appendChild(o);
-    });
-
-    if(!available.length){
-      select.innerHTML='<option value="">No available names</option>';
-    }
-
-  }catch(e){
-    console.error(e);
-    select.innerHTML='<option value="">Unable to load names</option>';
-  }
+async function setupMasterPassword(){
+  showAuthError('Master Admin password is managed in Supabase Authentication. Use the existing Auth user email/password.');
 }
-
-function selectRegisterMember(){
-  const select=$('registerName');
-  const codeInput=$('registerCode');
-  if(!select || !codeInput)return;
-
-  const option=select.options[select.selectedIndex];
-
-  codeInput.value=option && option.value
-    ? option.value.toUpperCase()
-    : '';
-}
-
-function showCreateAccount(){
-  clearAuthError();
-  $('loginPanel').style.display='none';
-  $('registerPanel').style.display='block';
-  $('authTitle').textContent='Create Account';
-  loadRegistrationMembers();
-}
-
-function showLoginForm(){
-  clearAuthError();
-  $('registerPanel').style.display='none';
-  $('loginPanel').style.display='block';
-  $('authTitle').textContent='Secure Login';
-}
-
-async function registerAccount(){
-  clearAuthError();
-
-  const select=$('registerName');
-  const option=select.options[select.selectedIndex];
-
-  const name=option?.dataset?.name || '';
-  const code=$('registerCode').value.trim().toUpperCase();
-  const password=$('registerPassword').value;
-  const password2=$('registerPassword2').value;
-
-  if(!name || !code){
-    $('registerError').textContent='Please select your saved name.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  if(password.length<8){
-    $('registerError').textContent='Password must contain at least 8 characters.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  if(password!==password2){
-    $('registerError').textContent='Passwords do not match.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  const btn=$('registerBtn');
-  btn.disabled=true;
-  btn.textContent='Creating...';
-
-  try{
-    const response=await fetch(
-      URL+'/functions/v1/register-user',
-      {
-        method:'POST',
-        headers:{
-          'apikey':KEY,
-          'Content-Type':'application/json'
-        },
-        body:JSON.stringify({
-          name:name,
-          code:code,
-          password:password
-        })
-      }
-    );
-
-    const result=await response.json().catch(()=>({}));
-
-    if(!response.ok){
-      $('registerError').textContent=
-        result.error || result.details || 'Account creation failed.';
-      $('registerError').style.display='block';
-      return;
-    }
-
-    $('registerPending').textContent=
-      '✓ Account created successfully. Your account is now waiting for Master Admin approval.';
-    $('registerPending').style.display='block';
-
-    $('registerName').value='';
-    $('registerCode').value='';
-    $('registerPassword').value='';
-    $('registerPassword2').value='';
-
-  }catch(error){
-    console.error(error);
-    $('registerError').textContent=
-      'Unable to create account. Please try again.';
-    $('registerError').style.display='block';
-  }finally{
-    btn.disabled=false;
-    btn.textContent='Create Account';
-  }
-}
-
+const $=id=>document.getElementById(id);
 function bindAuthButtons(){
-  $('loginBtn').onclick=authSignIn;
-  $('createAccountBtn').onclick=showCreateAccount;
-  $('backLoginBtn').onclick=showLoginForm;
-  $('registerBtn').onclick=registerAccount;
-  $('registerName').addEventListener('change',selectRegisterMember);
-
-  $('loginPassword').addEventListener('keydown',e=>{
-    if(e.key==='Enter')authSignIn();
-  });
-
-  $('registerPassword2').addEventListener('keydown',e=>{
-    if(e.key==='Enter')registerAccount();
-  });
+  const lb=document.getElementById('loginBtn');
+  if(lb){lb.onclick=loginFlow; lb.addEventListener('touchend',function(e){e.preventDefault();loginFlow();},{passive:false});}
 }
-
 bindAuthButtons();
-
+$('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')loginFlow()});
+$('showCreateBtn').addEventListener('click',showCreateForm);
+$('backLoginBtn').addEventListener('click',showLoginForm);
+$('registerBtn').addEventListener('click',registerAccount);
+async function registerAccount(){
+  clearRegError();
+  const username=$('regUsername').value.trim().toLowerCase();
+  const name=$('regName').value.trim();
+  const password=$('regPassword').value;
+  const password2=$('regPassword2').value;
+  if(!username||!name||!password)return showRegError('Username, Name and Password are required.');
+  if(!/^[a-z0-9._-]{3,30}$/.test(username))return showRegError('Username: 3-30 characters, letters/numbers/dot/dash/underscore only.');
+  if(password.length<8)return showRegError('Password must be at least 8 characters.');
+  if(password!==password2)return showRegError('Passwords do not match.');
+  if(username==='shafithuyyath')return showRegError('This username is reserved.');
+  const r=await fetch(URL+'/functions/v1/register-user',{method:'POST',headers:{'apikey':KEY,'Content-Type':'application/json'},body:JSON.stringify({username,name,password})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)return showRegError(j.error||'Could not create account.');
+  showLoginForm();
+  $('loginUsername').value=username;
+  $('loginPassword').value='';
+  showAuthError('✓ Account created. Admin approval is required before login.');
+  $('authError').style.background='#eefbf3'; $('authError').style.color='#176b3a';
+}
+$('logoutBtn').addEventListener('click',async()=>{try{await fetch(AUTH_BASE+'/logout',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+(sessionStorage.getItem('ayalvasikal_access_token')||KEY)}})}catch(e){} setLoggedOut();location.reload()});
 const apiHeaders={
   'apikey':KEY,
   'Authorization':'Bearer '+KEY,
@@ -827,161 +537,38 @@ function readPermissionChecks(prefix){
 }
 function userRow(u){
   const roleLabel=u.role==='master_admin'?'👑 Master Admin':u.role==='admin'?'🛠️ Admin':'👤 User';
-  return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${esc(u.name)}</b><div class="small">Username: ${esc(u.username)}</div><div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div></div>${u.role==='master_admin'?'<span class="small">Protected</span>':`<button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>`}</div>`;
+  const status=(u.status||'approved'); const pending=status==='pending'; const statusHtml=pending?'<span class="small" style="color:#b54708;font-weight:800">⏳ Pending Approval</span>':'<span class="small" style="color:#1f7a4d;font-weight:800">✓ Approved</span>'; return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${esc(u.name)}</b><div class="small">Username: ${esc(u.username)}</div><div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div>${statusHtml}</div>${u.role==='master_admin'?'<span class="small">Protected</span>':`<div class="actions" style="margin-top:0"><button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>${pending?`<button class="primary" type="button" onclick="approveUser(${Number(u.id)})">✓ Approve</button>`:''}</div>`}</div>`;
 }
 function addUserProfileForm(){
-  if(!currentUser || currentUser.role!=='master_admin')return;
-
   const perms=defaultPermissions('user');
-
-  $('userForm').innerHTML=`
-  <div class="card" style="margin:0">
-    <div class="grid">
-      <div class="field full">
-        <label>Select saved Name</label>
-        <select id="upMember">
-          <option value="">Loading names...</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Code</label>
-        <input id="upCode" class="locked" readonly>
-      </div>
-
-      <div class="field">
-        <label>Role</label>
-        <select id="upRole">
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-
-      <div class="field full">
-        <label>Initial Password</label>
-        <input id="upPassword" type="password" minlength="8" placeholder="At least 8 characters">
-      </div>
-    </div>
-
-    <div class="notice" style="margin-top:10px">
-      <b>Permissions</b>
-      <div class="permGrid">${permissionChecks('up',perms)}</div>
-    </div>
-
-    <div class="small" style="margin-top:8px">
-      Name and Code come from Master → Name & Code. Code cannot be changed.
-    </div>
-
-    <div class="actions">
-      <button class="primary" type="button" onclick="saveUserProfile()">💾 Save User</button>
-      <button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button>
-    </div>
-  </div>`;
-
-  loadAdminMemberOptions();
+  $('userForm').innerHTML=`<div class="grid">
+    <div class="field"><label>Username</label><input id="upUsername" type="text" placeholder="Login username" autocomplete="off"></div>
+    <div class="field"><label>Name</label><input id="upName" type="text" placeholder="Full name"></div>
+    <div class="field"><label>Code</label><input id="upCode" type="text" placeholder="C0001" autocomplete="off"></div>
+    <div class="field"><label>Role</label><select id="upRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label>Initial Password</label><input id="upPassword" type="password" minlength="8" placeholder="At least 8 characters"></div>
+  </div>
+  <div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('up',perms)}</div></div>
+  <div class="small" style="margin-top:8px">Password is sent securely to the server-side Supabase Auth function and is not saved in this profile table.</div>
+  <div class="actions"><button class="primary" type="button" onclick="saveUserProfile()">💾 Create User</button><button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button></div>`;
 }
-
-async function loadAdminMemberOptions(){
-  const select=$('upMember');
-  if(!select)return;
-
-  const mr=await apiSelect('members','name');
-  const pr=await apiSelect('user_profiles','code');
-
-  const used=new Set(
-    (pr.data||[])
-      .filter(x=>x.code)
-      .map(x=>String(x.code).toUpperCase())
-  );
-
-  select.innerHTML='<option value="">Select saved name</option>';
-
-  (mr.data||[]).forEach(m=>{
-    const code=String(m.code||'').toUpperCase();
-    if(!code || used.has(code))return;
-
-    const o=document.createElement('option');
-    o.value=code;
-    o.dataset.name=m.name;
-    o.textContent=m.name+' — '+code;
-    select.appendChild(o);
-  });
-
-  select.onchange=function(){
-    const o=select.options[select.selectedIndex];
-    $('upCode').value=o?.value || '';
-  };
-}
-
 async function saveUserProfile(){
-  if(!currentUser || currentUser.role!=='master_admin')
-    return toast('Only Master Admin can add users.');
-
-  const memberSelect=$('upMember');
-  const option=memberSelect?.options[memberSelect.selectedIndex];
-
-  const name=option?.dataset?.name || '';
-  const code=$('upCode').value.trim().toUpperCase();
-  const password=$('upPassword').value;
-  const role=$('upRole').value;
-  const permissions=readPermissionChecks('up');
-
-  if(!name || !code)
-    return toast('Select a saved Name & Code');
-
-  if(password.length<8)
-    return toast('Password must be at least 8 characters');
-
-  const r=await fetch(
-    URL+'/functions/v1/register-user',
-    {
-      method:'POST',
-      headers:{
-        'apikey':KEY,
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        name:name,
-        code:code,
-        password:password
-      })
-    }
-  );
-
-  const result=await r.json().catch(()=>({}));
-
-  if(!r.ok)
-    return toast(result.error || result.details || 'User creation failed');
-
-  // Master Admin can immediately set role and permissions.
-  const created=await apiSelect(
-    'user_profiles',
-    'id'
-  );
-
-  const profile=(created.data||[]).find(
-    x=>String(x.code||'').toUpperCase()===code
-  );
-
-  if(profile){
-    const update=await apiUpdate(
-      'user_profiles',
-      {
-        role:role,
-        permissions:permissions,
-        status:'approved'
-      },
-      'id',
-      profile.id
-    );
-
-    if(update.error)
-      return toast('User created, but permission update failed');
-  }
-
-  await loadUserProfiles();
-  await renderUserPermissions();
-  toast('✓ User created');
+  const username=$('upUsername').value.trim().toLowerCase(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value, password=$('upPassword').value;
+  if(!username||!name||!password)return toast('Username, Name and Password required');
+  if(password.length<8)return toast('Password must be at least 8 characters');
+  if(username==='shafithuyyath') return toast('Master Admin username is protected');
+  if(userProfiles.some(u=>String(u.username).toLowerCase()===username))return toast('Username already exists');
+  if(code && userProfiles.some(u=>u.code===code))return toast('Code already assigned');
+  const token=sessionStorage.getItem('ayalvasikal_access_token')||'';
+  if(!token)return toast('Please login again');
+  const r=await fetch(URL+'/functions/v1/admin-create-user',{
+    method:'POST',
+    headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({username,name,code:code||null,role,password,permissions:readPermissionChecks('up')})
+  });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)return toast(j.error||'Could not create user');
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User created and login is ready');
 }
 
 async function editUserProfile(id){
@@ -999,6 +586,14 @@ async function updateUserProfile(id){
   if(r.error){console.error(r.error);return toast('Update failed');}
   await loadUserProfiles(); await renderUserPermissions(); toast('✓ User updated');
 }
+async function approveUser(id){
+  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
+  const role=confirm('Make this user an Admin?\nOK = Admin, Cancel = User')?'admin':'user';
+  const perms=u.permissions&&Object.keys(u.permissions).length?u.permissions:defaultPermissions(role);
+  const r=await apiUpdate('user_profiles',{status:'approved',role,permissions:perms},'id',id);
+  if(r.error)return toast('Approval failed');
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User approved');
+}
 async function deleteUserProfile(id){
   const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
   if(!confirm(`Delete user ${u.name}?`))return;
@@ -1010,7 +605,7 @@ async function renderUserPermissions(){
   if(!currentUser || (currentUser.role!=='master_admin' && !(currentUser.permissions||{}).user_permissions)) return toast('You do not have permission to manage users');
   await loadUserProfiles();
   const rows=userProfiles.map(userRow).join('');
-  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.</div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
+  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.<br><span class="small">Users can create their own account with Username + Password. Admin approval is required before login. Master Admin can also create users directly.</span></div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
 }
 function reportMonths(){
   const set=new Set();
@@ -1266,22 +861,9 @@ $('printBtn').addEventListener('click',()=>window.print());
 
 (async function bootAuth(){
   const saved=sessionStorage.getItem('ayalvasikal_user');
-
   if(saved){
-    try{
-      const x=JSON.parse(saved);
-      const p=x.code
-        ? await loadProfileByCode(x.code)
-        : await loadCurrentProfile(x.username);
-
-      if(p){
-        setLoggedIn(p);
-        await load();
-        return;
-      }
-    }catch(e){}
+    try{const x=JSON.parse(saved); const p=await loadCurrentProfile(x.username); if(p){setLoggedIn(p); await load(); return;}}catch(e){}
   }
-
   setLoggedOut();
 })();
 </script>
