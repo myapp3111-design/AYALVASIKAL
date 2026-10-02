@@ -49,7 +49,16 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
   .drawerBox{width:100%!important;height:auto!important;box-shadow:none!important}
 }
 </style>
-</head>
+<style>
+.statusFilters{display:flex;gap:14px;flex-wrap:wrap;padding:10px 0}
+.statusFilters label{display:flex;align-items:center;gap:6px;font-weight:600}
+.statusFilters input{width:auto}
+.reportSummary{background:#f5f8f6;border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;line-height:1.8}
+.reportTable{width:100%;border-collapse:collapse;min-width:520px;background:#fff}
+.reportTable th,.reportTable td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
+.reportTable th{background:#f7f7f7}.status-ok{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:#1f9d55;color:#fff;font-weight:800;font-size:17px}.status-no{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:#d63b3b;color:#fff;font-weight:800;font-size:17px}
+@media print{body{background:#fff!important}.top,.search,.card,.gear,.menu,.drawerBox>button,.drawerBox>h3,.actions button{display:none!important}.drawer{position:static!important;background:#fff!important}.drawerBox{width:100%!important;height:auto!important;box-shadow:none!important}}
+</style></head>
 <body><script>
 // Settings must work independently of Supabase loading.
 window.openSettings=function(){var d=document.getElementById('drawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
@@ -364,32 +373,71 @@ function reportMonthLabel(v){
   return new Date(+p[0],+p[1]-1,1).toLocaleString(undefined,{month:'long',year:'numeric'});
 }
 function reportPayment(code,month){return data.find(x=>x.code===code&&x.month===month)}
-function buildMonthlyReport(month){
+function statusMark(p){
+  return p ? '<span class="status-ok" title="Given">✓</span>' : '<span class="status-no" title="Not Given">✕</span>';
+}
+function buildMonthlyReport(month,status='all'){
   const list=[...members].sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
   let given=0,notGiven=0,total=0;
   const rows=list.map(m=>{
     const p=reportPayment(m.code,month);
     if(p){given++;total+=Number(p.amount||0)}else notGiven++;
-    return `<tr><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${esc(m.mobile||'—')}</td><td>${p?'GIVEN':'NOT GIVEN'}</td><td>${p?money(p.amount):'—'}</td></tr>`;
+    if(status==='given'&&!p)return '';
+    if(status==='not'&&p)return '';
+    return `<tr><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${esc(m.mobile||'—')}</td><td>${statusMark(p)}</td><td>${p?money(p.amount):'—'}</td></tr>`;
   }).join('');
   $('monthlyReportBox').innerHTML=`
-    <div class="notice"><b>${esc(reportMonthLabel(month))}</b><br>
-    Given: <b>${given}</b> · Not Given: <b>${notGiven}</b> · Total: <b>${money(total)}</b></div>
-    <div style="overflow:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;min-width:520px">
+    <div class="reportSummary"><b>${esc(reportMonthLabel(month))}</b><br>
+    ✓ Given: <b>${given}</b> · ✕ Not Given: <b>${notGiven}</b> · Total: <b>${money(total)}</b></div>
+    <div style="overflow:auto;margin-top:10px"><table class="reportTable">
     <thead><tr><th>Code</th><th>Name</th><th>Mobile</th><th>Status</th><th>Amount</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="5">No members found.</td></tr>'}</tbody></table></div>`;
+    <tbody>${rows||'<tr><td colspan="5">No matching members.</td></tr>'}</tbody></table></div>
+    <div class="actions" style="margin-top:12px"><button class="primary" type="button" id="shareMonthlyReport">📱 Share Report to WhatsApp</button></div>`;
+  $('shareMonthlyReport').addEventListener('click',()=>shareMonthlyReport(month,status));
 }
-function buildPersonReport(code){
+function shareMonthlyReport(month,status){
+  const list=[...members].sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
+  const filtered=list.filter(m=>{
+    const p=reportPayment(m.code,month);
+    return status==='given'?!!p:status==='not'?!p:true;
+  });
+  const given=list.filter(m=>!!reportPayment(m.code,month)).length;
+  const notGiven=list.length-given;
+  const total=list.reduce((sum,m)=>{const p=reportPayment(m.code,month);return sum+(p?Number(p.amount||0):0)},0);
+  let t=`AYALVASIKAL\nMonthly Report - ${reportMonthLabel(month)}\n\n✓ Given: ${given}\n✕ Not Given: ${notGiven}\nTotal Collection: ${money(total)}\n\n`;
+  t+=filtered.map(m=>{
+    const p=reportPayment(m.code,month);
+    return `${p?'✓':'✕'} ${m.name} (${m.code})${m.mobile?' - '+m.mobile:''}${p?' - '+money(p.amount):''}`;
+  }).join('\n');
+  location.href='https://wa.me/?text='+encodeURIComponent(t);
+}
+function buildPersonReport(code,status='all'){
   const m=members.find(x=>x.code===code);
   if(!m){$('personReportBox').innerHTML='<div class="small">Select a person.</div>';return}
   const rows=reportMonths().map(month=>{
     const p=reportPayment(code,month);
-    return `<tr><td>${esc(reportMonthLabel(month))}</td><td>${p?'GIVEN':'NOT GIVEN'}</td><td>${p?money(p.amount):'—'}</td><td>${p?esc(p.remarks||'—'):'—'}</td></tr>`;
+    if(status==='given'&&!p)return '';
+    if(status==='not'&&p)return '';
+    return `<tr><td>${esc(reportMonthLabel(month))}</td><td>${statusMark(p)}</td><td>${p?money(p.amount):'—'}</td><td>${p?esc(p.remarks||'—'):'—'}</td></tr>`;
   }).join('');
   const total=data.filter(x=>x.code===code).reduce((a,x)=>a+Number(x.amount||0),0);
   $('personReportBox').innerHTML=`<div class="notice"><b>${esc(m.name)}</b> · ${esc(m.code)} · ${esc(m.mobile||'—')}<br>Total: <b>${money(total)}</b></div>
-  <div style="overflow:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse;min-width:480px">
-  <thead><tr><th>Month</th><th>Status</th><th>Amount</th><th>Remarks</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  <div style="overflow:auto;margin-top:10px"><table class="reportTable"><thead><tr><th>Month</th><th>Status</th><th>Amount</th><th>Remarks</th></tr></thead><tbody>${rows||'<tr><td colspan="4">No matching months.</td></tr>'}</tbody></table></div>
+  <div class="actions" style="margin-top:12px"><button class="primary" type="button" id="sharePersonReport">📱 Share Report to WhatsApp</button></div>`;
+  $('sharePersonReport').addEventListener('click',()=>sharePersonReport(code,status));
+}
+function sharePersonReport(code,status){
+  const m=members.find(x=>x.code===code); if(!m)return;
+  const rows=reportMonths().filter(month=>{
+    const p=reportPayment(code,month);
+    return status==='given'?!!p:status==='not'?!p:true;
+  });
+  let t=`AYALVASIKAL\nPerson Report\n\nName: ${m.name}\nCode: ${m.code}\nMobile: ${m.mobile||'-'}\n\n`;
+  t+=rows.map(month=>{
+    const p=reportPayment(code,month);
+    return `${p?'✓':'✕'} ${reportMonthLabel(month)}${p?' - '+money(p.amount):''}${p&&p.remarks?' - '+p.remarks:''}`;
+  }).join('\n');
+  location.href='https://wa.me/?text='+encodeURIComponent(t);
 }
 async function renderReports(){
   if(!members.length) await loadMembers();
@@ -397,27 +445,50 @@ async function renderReports(){
   const people=[...members].sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
   const first=ms[0]||'';
   showSetting('Reports',`
-    <div class="notice"><b>Monthly Report</b><br>Given / Not Given and total collection.</div>
+    <div class="notice"><b>Monthly Report</b><br>Choose a month and show ✓ Given, ✕ Not Given, or All.</div>
     <div class="field" style="margin-top:12px"><label>Month</label>
       <select id="reportMonth">${ms.map(m=>`<option value="${esc(m)}" ${m===first?'selected':''}>${esc(reportMonthLabel(m))}</option>`).join('')}</select>
     </div>
-    <div class="actions">
-      <button class="primary" type="button" id="monthReportBtn">Show Report</button>
-      <button class="secondary" type="button" id="printReportBtn">🖨 Print</button>
+    <div class="field">
+      <label>Status</label>
+      <div class="statusFilters">
+        <label><input type="radio" name="monthStatus" value="all" checked> All</label>
+        <label><input type="radio" name="monthStatus" value="given"> ✓ Given</label>
+        <label><input type="radio" name="monthStatus" value="not"> ✕ Not Given</label>
+      </div>
     </div>
+    <div class="actions"><button class="primary" type="button" id="monthReportBtn">Show Report</button></div>
     <div id="monthlyReportBox"></div>
+
     <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
-    <div class="notice"><b>Person-wise Report</b><br>Monthly Given / Not Given history.</div>
+    <div class="notice"><b>Person-wise Report</b><br>Choose a person and filter ✓ Given, ✕ Not Given, or All.</div>
     <div class="field" style="margin-top:12px"><label>Person</label>
       <select id="reportPerson"><option value="">Select person</option>
       ${people.map(m=>`<option value="${esc(m.code)}">${esc(m.name)} — ${esc(m.code)}</option>`).join('')}</select>
     </div>
+    <div class="field">
+      <label>Status</label>
+      <div class="statusFilters">
+        <label><input type="radio" name="personStatus" value="all" checked> All</label>
+        <label><input type="radio" name="personStatus" value="given"> ✓ Given</label>
+        <label><input type="radio" name="personStatus" value="not"> ✕ Not Given</label>
+      </div>
+    </div>
+    <div class="actions"><button class="primary" type="button" id="personReportBtn">Show Person Report</button></div>
     <div id="personReportBox"></div>`);
-  $('monthReportBtn').addEventListener('click',()=>buildMonthlyReport($('reportMonth').value));
-  $('reportMonth').addEventListener('change',()=>buildMonthlyReport($('reportMonth').value));
-  $('reportPerson').addEventListener('change',()=>buildPersonReport($('reportPerson').value));
-  $('printReportBtn').addEventListener('click',()=>window.print());
-  buildMonthlyReport(first);
+
+  $('monthReportBtn').addEventListener('click',()=>{
+    buildMonthlyReport($('reportMonth').value,document.querySelector('input[name="monthStatus"]:checked').value);
+  });
+  $('reportPerson').addEventListener('change',()=>{
+    const code=$('reportPerson').value;
+    if(code) buildPersonReport(code,document.querySelector('input[name="personStatus"]:checked').value);
+    else $('personReportBox').innerHTML='<div class="small">Select a person.</div>';
+  });
+  $('personReportBtn').addEventListener('click',()=>{
+    buildPersonReport($('reportPerson').value,document.querySelector('input[name="personStatus"]:checked').value);
+  });
+  buildMonthlyReport(first,'all');
 }
 $('reportsBtn').addEventListener('click',()=>renderReports());
 
