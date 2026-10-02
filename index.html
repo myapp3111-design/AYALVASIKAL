@@ -21,7 +21,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .search{width:100%;margin:16px 0;padding:15px;border-radius:16px;background:var(--accent);color:#fff;font-weight:800;box-shadow:0 12px 28px #0f766e25}
 .card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:15px;box-shadow:0 9px 28px #0f172a09;animation:up .2s ease}
 @keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-.hidden{display:none!important}#settingsDrawer:target{display:flex!important;align-items:stretch}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.full{grid-column:1/-1}
+.hidden{display:none!important}#drawer:target{display:flex!important;align-items:stretch}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.full{grid-column:1/-1}
 .field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:750}
 .field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe;outline:none}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary{background:var(--accent);color:#fff;padding:11px 15px;border-radius:12px;font-weight:750}.secondary{background:#eef2f5;color:#243447;padding:11px 15px;border-radius:12px;font-weight:750}
@@ -38,10 +38,10 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
-window.openSettings=function(){var d=document.getElementById('settingsDrawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
-window.closeSettings=function(){var d=document.getElementById('settingsDrawer');if(d){d.classList.add('hidden');d.setAttribute('aria-hidden','true');}};
+window.openSettings=function(){var d=document.getElementById('drawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
+window.closeSettings=function(){var d=document.getElementById('drawer');if(d){d.classList.add('hidden');d.setAttribute('aria-hidden','true');}};
 document.addEventListener('DOMContentLoaded',function(){
-  var b=document.getElementById('settingsBtn'), c=document.getElementById('closeSettings'), d=document.getElementById('settingsDrawer');
+  var b=document.getElementById('settingsBtn'), c=document.getElementById('closeSettings'), d=document.getElementById('drawer');
   if(b)b.addEventListener('click',window.openSettings);
   if(c)c.addEventListener('click',window.closeSettings);
   if(d)d.addEventListener('click',function(e){if(e.target===d)window.closeSettings();});
@@ -131,14 +131,14 @@ function toast(x){
 }
 
 function openSettings(){
-  const d=$('settingsDrawer'); if(!d) return;
+  const d=$('drawer'); if(!d) return;
   d.classList.remove('hidden');
-  $('settingsDrawer').setAttribute('aria-hidden','false');
+  $('drawer').setAttribute('aria-hidden','false');
 }
 function closeSettings(){
-  const d=$('settingsDrawer'); if(!d) return;
+  const d=$('drawer'); if(!d) return;
   d.classList.add('hidden');
-  $('settingsDrawer').setAttribute('aria-hidden','true');
+  $('drawer').setAttribute('aria-hidden','true');
 }
 window.openSettings=openSettings; window.closeSettings=closeSettings;
 
