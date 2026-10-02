@@ -59,6 +59,10 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .reportTable th,.reportTable td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}
 .reportTable th{background:#f7f7f7}.status-ok{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:#1f9d55;color:#fff;font-weight:800;font-size:17px}.status-no{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:#d63b3b;color:#fff;font-weight:800;font-size:17px}
 @media print{body{background:#fff!important}.top,.search,.card,.gear,.menu,.drawerBox>button,.drawerBox>h3,.actions button{display:none!important}.drawer{position:static!important;background:#fff!important}.drawerBox{width:100%!important;height:auto!important;box-shadow:none!important}}
+</style>
+<style>
+.authGate{position:fixed;inset:0;background:linear-gradient(145deg,#0f172a,#134e4a);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px}.authCard{width:min(430px,100%);background:#fff;border-radius:24px;padding:26px;box-shadow:0 25px 70px #0005}.authBrand{text-align:center;font-size:28px;font-weight:900;letter-spacing:2px;color:#123}.authSub{text-align:center;color:#718096;margin:6px 0 22px}.authActions{display:flex;gap:10px;flex-direction:column;margin-top:16px}.authActions button{width:100%}.authError{display:none;background:#fff0f0;color:#b42318;border:1px solid #ffd0d0;border-radius:10px;padding:10px;margin-top:12px;font-size:13px}.authInfo{background:#f3f7f7;border-radius:12px;padding:11px;margin-top:14px;font-size:12px;color:#52606d}.logoutBtn{display:none;margin-left:8px}.sessionUser{font-size:12px;color:#5b6877;margin-top:12px;text-align:center}.dangerBtn{background:#fff0f0!important;color:#b42318!important;border:1px solid #ffd0d0!important}
+@media(max-width:560px){.authCard{padding:22px;border-radius:20px}.authBrand{font-size:24px}}
 </style></head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -73,9 +77,26 @@ document.addEventListener('DOMContentLoaded',function(){
 });
 </script>
 
+<div id="authGate" class="authGate">
+  <div class="authCard">
+    <div class="authBrand">AYALVASIKAL</div>
+    <div class="authSub">Secure Login</div>
+    <div class="field"><label>Username</label><input id="loginUsername" type="text" autocomplete="username" placeholder="Enter username"></div>
+    <div class="field" style="margin-top:10px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password"></div>
+    <div id="authError" class="authError"></div>
+    <div class="authActions">
+      <button class="primary" type="button" id="loginBtn">🔐 Login</button>
+      <button class="secondary" type="button" id="setupMasterBtn">⚙ First-time Master Admin Password</button>
+    </div>
+    <div class="authInfo">Master Admin username: <b>shafithuyyath</b><br>For security, password is handled by Supabase Authentication and is not stored in the profile table.</div>
+    <div id="sessionUser" class="sessionUser"></div>
+  </div>
+</div>
+
 <div class="top">
   <div class="brand">AYALVASIKAL</div>
   <button id="settingsBtn" class="gear" type="button" onclick="openSettings()">⚙ Settings</button>
+  <button id="logoutBtn" class="gear logoutBtn" type="button">↪ Logout</button>
 </div>
 
 <main class="wrap">
@@ -140,6 +161,73 @@ document.addEventListener('DOMContentLoaded',function(){
 const URL='https://lfyejyjwyoovocsrolma.supabase.co';
 const KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G';
 const db=true; // REST connection: no external Supabase JS library required.
+const AUTH_BASE=URL+'/auth/v1';
+let currentUser=null;
+function authEmail(username){ return String(username||'').trim().toLowerCase()+'@ayalvasikal.local'; }
+function authMessage(j){ return j?.msg || j?.message || j?.error_description || j?.error || 'Authentication failed'; }
+async function authRequest(path,body){
+  try{
+    const r=await fetch(AUTH_BASE+path,{method:'POST',headers:{'apikey':KEY,'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({}));
+    return r.ok?{data:j,error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
+}
+async function authSignIn(username,password){
+  return authRequest('/token?grant_type=password',{email:authEmail(username),password});
+}
+async function authSignUp(username,password){
+  return authRequest('/signup',{email:authEmail(username),password,data:{username}});
+}
+function showAuthError(msg){const e=$('authError');e.textContent=msg;e.style.display='block';}
+function clearAuthError(){const e=$('authError');e.textContent='';e.style.display='none';}
+function setLoggedIn(profile){
+  currentUser=profile;
+  sessionStorage.setItem('ayalvasikal_user',JSON.stringify({id:profile.id,username:profile.username}));
+  $('authGate').style.display='none';
+  $('logoutBtn').style.display='inline-block';
+}
+function setLoggedOut(){
+  currentUser=null; sessionStorage.removeItem('ayalvasikal_user');
+  $('authGate').style.display='flex'; $('logoutBtn').style.display='none';
+}
+async function loadCurrentProfile(username){
+  const r=await apiSelect('user_profiles');
+  if(r.error) return null;
+  return (r.data||[]).find(u=>String(u.username).toLowerCase()===String(username).toLowerCase())||null;
+}
+async function loginFlow(){
+  clearAuthError();
+  const username=$('loginUsername').value.trim(), password=$('loginPassword').value;
+  if(!username||!password)return showAuthError('Username and password are required.');
+  const p=await loadCurrentProfile(username);
+  if(!p)return showAuthError('Username not found. Add the user from Master Admin User Permissions.');
+  const r=await authSignIn(username,password);
+  if(r.error)return showAuthError(authMessage(r.error));
+  setLoggedIn(p);
+  $('sessionUser').textContent='Logged in as '+p.name+' · '+p.role;
+  await load();
+}
+async function setupMasterPassword(){
+  clearAuthError();
+  const username='shafithuyyath';
+  const p=await loadCurrentProfile(username);
+  if(!p)return showAuthError('Master Admin profile was not found.');
+  const password=$('loginPassword').value;
+  if(password.length<8)return showAuthError('Choose a password with at least 8 characters.');
+  const r=await authSignUp(username,password);
+  if(r.error){
+    const m=authMessage(r.error);
+    if(/already registered|already exists/i.test(m)) return showAuthError('Master Admin login already exists. Use Login.');
+    if(/confirm|confirmation/i.test(m)) return showAuthError('Supabase email confirmation is enabled. Disable email confirmation in Supabase Auth settings, then try again.');
+    return showAuthError(m);
+  }
+  $('loginUsername').value=username;
+  toast('✓ Master Admin login created. Tap Login.');
+}
+$('loginBtn').addEventListener('click',loginFlow);
+$('setupMasterBtn').addEventListener('click',setupMasterPassword);
+$('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')loginFlow()});
+$('logoutBtn').addEventListener('click',()=>{setLoggedOut();location.reload()});
 const apiHeaders={
   'apikey':KEY,
   'Authorization':'Bearer '+KEY,
@@ -196,6 +284,7 @@ function toast(x){
 }
 
 function openSettings(){
+  if(!currentUser) return showAuthError('Please login first.');
   const d=$('drawer'); if(!d) return;
   d.classList.remove('hidden');
   $('drawer').setAttribute('aria-hidden','false');
@@ -414,21 +503,29 @@ function addUserProfileForm(){
     <div class="field"><label>Name</label><input id="upName" type="text" placeholder="Full name"></div>
     <div class="field"><label>Code</label><input id="upCode" type="text" placeholder="C0001" autocomplete="off"></div>
     <div class="field"><label>Role</label><select id="upRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+    <div class="field"><label>Initial Password</label><input id="upPassword" type="password" minlength="8" placeholder="At least 8 characters"></div>
   </div>
   <div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('up',perms)}</div></div>
-  <div class="small" style="margin-top:8px">Password/login security will be connected in the next authentication step. Do not enter or store passwords here.</div>
+  <div class="small" style="margin-top:8px">Password is sent to Supabase Authentication and is not saved in this profile table.</div>
   <div class="actions"><button class="primary" type="button" onclick="saveUserProfile()">💾 Save User</button><button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button></div>`;
 }
 async function saveUserProfile(){
-  const username=$('upUsername').value.trim(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value;
-  if(!username||!name) return toast('Username and Name required');
-  if(username.toLowerCase()==='shafithuyyath') return toast('Master Admin username is protected');
-  if(userProfiles.some(u=>String(u.username).toLowerCase()===username.toLowerCase())) return toast('Username already exists');
-  if(code && userProfiles.some(u=>u.code===code)) return toast('Code already assigned');
+  const username=$('upUsername').value.trim().toLowerCase(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value, password=$('upPassword').value;
+  if(!username||!name||!password)return toast('Username, Name and Password required');
+  if(password.length<8)return toast('Password must be at least 8 characters');
+  if(username==='shafithuyyath') return toast('Master Admin username is protected');
+  if(userProfiles.some(u=>String(u.username).toLowerCase()===username))return toast('Username already exists');
+  if(code && userProfiles.some(u=>u.code===code))return toast('Code already assigned');
+  const auth=await authSignUp(username,password);
+  if(auth.error){
+    const msg=authMessage(auth.error);
+    return toast(/confirm|confirmation/i.test(msg)?'Disable Supabase email confirmation first':msg);
+  }
   const r=await apiInsert('user_profiles',{username,name,code:code||null,role,permissions:readPermissionChecks('up')});
-  if(r.error){console.error(r.error);return toast('Could not save user');}
-  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User saved');
+  if(r.error){return toast('Profile save failed: '+(r.error.message||''));}
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User created');
 }
+
 async function editUserProfile(id){
   const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin') return;
   const role=u.role==='admin'?'admin':'user';
@@ -452,6 +549,7 @@ async function deleteUserProfile(id){
   await loadUserProfiles(); await renderUserPermissions(); toast('✓ User deleted');
 }
 async function renderUserPermissions(){
+  if(!currentUser || (currentUser.role!=='master_admin' && !(currentUser.permissions||{}).user_permissions)) return toast('You do not have permission to manage users');
   await loadUserProfiles();
   const rows=userProfiles.map(userRow).join('');
   showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.</div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
@@ -613,11 +711,6 @@ async function renderReports(){
 $('reportsBtn').addEventListener('click',()=>renderReports());
 
 
-$('permissionsBtn').addEventListener('click',()=>{
- showSetting('User Permissions',
- '<div class="notice"><b>Master Admin:</b> shafithuyyath<br><br>Master Admin-ന് Admin/User permissions manage ചെയ്യാനുള്ള secure system അടുത്ത ഘട്ടത്തിൽ ചേർക്കാം.</div>');
-});
-
 async function load(){
  if(!db){toast('Database connection unavailable');return}
  let r=await apiSelect('entries');
@@ -713,7 +806,13 @@ function share(){
 $('shareBtn').addEventListener('click',share);
 $('printBtn').addEventListener('click',()=>window.print());
 
-load();
+(async function bootAuth(){
+  const saved=sessionStorage.getItem('ayalvasikal_user');
+  if(saved){
+    try{const x=JSON.parse(saved); const p=await loadCurrentProfile(x.username); if(p){setLoggedIn(p); await load(); return;}}catch(e){}
+  }
+  setLoggedOut();
+})();
 </script>
 </body>
 </html>
