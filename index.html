@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#0f172a">
 <link rel="manifest" href="manifest.json">
 <title>Ayalvasikal</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--ink:#122033;--muted:#718096;--line:#e6ebf2;--accent:#0f766e;--bg:#f4f7fb}
 *{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(145deg,#fbfcfe,#edf4f5);color:var(--ink)}
@@ -117,7 +116,41 @@ document.addEventListener('DOMContentLoaded',function(){
 <script>
 const URL='https://lfyejyjwyoovocsrolma.supabase.co';
 const KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G';
-let db=null; try { if (window.supabase && window.supabase.createClient) db=window.supabase.createClient(URL,KEY); } catch(e) { console.warn('Supabase init failed',e); }
+const db=true; // REST connection: no external Supabase JS library required.
+const apiHeaders={
+  'apikey':KEY,
+  'Authorization':'Bearer '+KEY,
+  'Content-Type':'application/json'
+};
+async function apiSelect(table, order='id'){
+  try{
+    const r=await fetch(`${URL}/rest/v1/${table}?select=*&order=${order}.asc`,{headers:apiHeaders});
+    const j=await r.json();
+    return r.ok?{data:j,error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
+}
+async function apiInsert(table,row){
+  try{
+    const r=await fetch(`${URL}/rest/v1/${table}`,{
+      method:'POST',
+      headers:{...apiHeaders,'Prefer':'return=representation'},
+      body:JSON.stringify(row)
+    });
+    const j=await r.json();
+    return r.ok?{data:Array.isArray(j)?j:j?[j]:[],error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
+}
+async function apiUpdate(table,values,column,value){
+  try{
+    const r=await fetch(`${URL}/rest/v1/${table}?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`,{
+      method:'PATCH',
+      headers:{...apiHeaders,'Prefer':'return=representation'},
+      body:JSON.stringify(values)
+    });
+    const j=await r.json();
+    return r.ok?{data:Array.isArray(j)?j:j?[j]:[],error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
+}
 let data=[],months=new Set(),last=null;
 
 const $=id=>document.getElementById(id);
@@ -152,7 +185,7 @@ $('namesBtn').addEventListener('click', async ()=>{
 
 async function loadMembers(){
   if(!db) return;
-  let r=await db.from('members').select('*').order('id');
+  let r=await apiSelect('members');
   if(r.error){ console.warn('members load failed', r.error); return; }
   members = r.data || [];
 
@@ -166,9 +199,9 @@ async function loadMembers(){
     !members.some(m=>m.code===code)
   );
   if(missing.length){
-    const ins = await db.from('members').insert(
+    const ins = await apiInsert('members',
       missing.map(([code,name])=>({code,name}))
-    ).select();
+    );
     if(!ins.error) members = [...members, ...(ins.data||[])];
   }
   syncMemberNamesToForms();
@@ -217,7 +250,7 @@ async function addMember(){
     return toast('Name already exists');
 
   const code=nextMemberCode();
-  const r=await db.from('members').insert({code,name}).select().single();
+  const r0=await apiInsert('members',{code,name}); const r={data:r0.data?.[0],error:r0.error};
   if(r.error) return toast('Could not add name');
   members.push(r.data);
   syncMemberNamesToForms();
@@ -236,11 +269,11 @@ async function renameMember(id){
   if(members.some(x=>x.id!==m.id && x.name.toLowerCase()===newName.toLowerCase()))
     return toast('Name already exists');
 
-  const r=await db.from('members').update({name:newName}).eq('id',m.id).select().single();
+  const r0=await apiUpdate('members',{name:newName},'id',m.id); const r={data:r0.data?.[0],error:r0.error};
   if(r.error) return toast('Could not update name');
 
   // Keep old payment records associated with the permanent code.
-  const e=await db.from('entries').update({name:newName}).eq('code',m.code);
+  const e=await apiUpdate('entries',{name:newName},'code',m.code);
   if(e.error) console.warn('Entry name sync failed',e.error);
 
   m.name=newName;
@@ -282,7 +315,7 @@ $('permissionsBtn').addEventListener('click',()=>{
 
 async function load(){
  if(!db){toast('Database connection unavailable');return}
- let r=await db.from('entries').select('*').order('id');
+ let r=await apiSelect('entries');
  if(r.error){toast('Database error');return}
  data=r.data||[];
  await loadMembers();
@@ -330,7 +363,7 @@ async function save(){if(!db)return toast('Database connection unavailable');
  if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');
  if(!members.some(m=>m.code===code && m.name===name))return toast('Select a saved Name & Code');
  if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
- let r=await db.from('entries').insert({code,name,amount,month,remarks}).select().single();
+ let r0=await apiInsert('entries',{code,name,amount,month,remarks}); let r={data:r0.data?.[0],error:r0.error};
  if(r.error)return toast('Save failed');
  data.push(r.data);last={...r.data,date:new Date().toLocaleDateString('en-GB')};
  refresh();receipt();clearEntry();toast('✓ Payment saved');
