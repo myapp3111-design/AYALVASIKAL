@@ -76,12 +76,10 @@ document.addEventListener('DOMContentLoaded',function(){
 </section>
 </div>
 
-<button class="search" type="button" id="searchBtn">🔎 Search</button>
-
-<section id="search" class="card hidden">
+<section id="search" class="card">
 <div class="grid">
 <div class="field"><label>Name (saved names only)</label><select id="sn"><option value="">All saved names</option></select></div>
-<div class="field"><label>Code</label><select id="sc"><option value="">All saved codes</option></select></div>
+<div class="field"><label>Code Search</label><input id="sc" type="text" placeholder="Enter code e.g. C0001" autocomplete="off"></div><div class="field full"><div class="small">Code search will show the saved person Name automatically.</div></div>
 <div class="field"><label>Amount</label><input id="sa" type="number" step="0.01"></div>
 <div class="field full"><label>Month + Year (multiple)</label><div id="months" class="months"></div></div>
 <div class="field full"><label>Remarks</label><input id="sr" placeholder="Search saved remarks"></div>
@@ -405,7 +403,7 @@ function refresh(){
  let codes=[...new Set(data.map(x=>x.code).filter(Boolean))];
  syncMemberNamesToForms();
  $('sn').innerHTML='<option value="">All saved names</option>'+names.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
- $('sc').innerHTML='<option value="">All saved codes</option>'+codes.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ 
  $('total').textContent=money(data.reduce((s,x)=>s+Number(x.amount||0),0));
  let now=new Date();
  let currentMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -422,9 +420,12 @@ function buildMonths(){
 function pickMonth(m){months.has(m)?months.delete(m):months.add(m);buildMonths();}
 
 function searchRows(){
- let a=[...data],n=$('sn').value,c=$('sc').value,am=$('sa').value,q=$('sr').value.trim().toLowerCase();
- if(n)a=a.filter(x=>x.name===n);if(c)a=a.filter(x=>x.code===c);if(am)a=a.filter(x=>Number(x.amount)===Number(am));
- if(months.size)a=a.filter(x=>months.has(x.month));if(q)a=a.filter(x=>(x.remarks||'').toLowerCase().includes(q));
+ let a=[...data],n=$('sn').value,c=$('sc').value.trim().toLowerCase(),am=$('sa').value,q=$('sr').value.trim().toLowerCase();
+ if(n)a=a.filter(x=>x.name===n);
+ if(c)a=a.filter(x=>String(x.code||'').toLowerCase().includes(c));
+ if(am)a=a.filter(x=>Number(x.amount)===Number(am));
+ if(months.size)a=a.filter(x=>months.has(x.month));
+ if(q)a=a.filter(x=>(x.remarks||'').toLowerCase().includes(q));
  let t=a.reduce((s,x)=>s+Number(x.amount||0),0);
  $('results').innerHTML=`<div class="small" style="padding:12px 0">${a.length} result(s) · Total ${money(t)}</div>`+
  a.map(x=>`<div class="row"><div><b>${esc(x.name)}</b> <span class="small">${esc(x.code)}</span><div class="small">${esc(x.month)} · ${esc(x.remarks||'')}</div></div><b>${money(x.amount)}</b></div>`).join('')+
@@ -432,9 +433,21 @@ function searchRows(){
 }
 function clearSearch(){$('sn').value='';$('sc').value='';$('sa').value='';$('sr').value='';months.clear();buildMonths();searchRows();}
 
-$('searchBtn').addEventListener('click',()=>{$('search').classList.toggle('hidden');});
 $('doSearch').addEventListener('click',searchRows);
 $('clearSearchBtn').addEventListener('click',clearSearch);
+$('sc').addEventListener('input',()=>{
+  const code=$('sc').value.trim().toLowerCase();
+  const m=members.find(x=>String(x.code||'').toLowerCase()===code);
+  if(m) $('sn').value=m.name;
+  else if(!code) $('sn').value='';
+});
+$('sn').addEventListener('change',()=>{
+  const name=$('sn').value;
+  if(!name){ $('sc').value=''; return; }
+  const m=members.find(x=>x.name===name);
+  if(m) $('sc').value=m.code;
+});
+
 
 async function save(){if(!db)return toast('Database connection unavailable');
  let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();
