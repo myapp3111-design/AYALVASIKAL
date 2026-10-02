@@ -34,7 +34,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .settingTitle{font-size:18px;font-weight:850;margin:15px 0 8px}.notice{padding:12px;border-radius:12px;background:#f3f7f7;margin-top:10px}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.totalGrid{grid-template-columns:1fr}.value{font-size:35px}.top{padding:14px}.wrap{padding:5px 12px 35px}}
 </style>
-</head>
+<style>
+@media print{
+  body{background:#fff!important}
+  .top,.search,.card,.gear,.actions button{display:none!important}
+  .drawer{position:static!important;background:#fff!important}
+  .drawerBox{width:100%!important;height:auto!important;box-shadow:none!important}
+}
+</style></head>
 <body><script>
 // Settings must work independently of Supabase loading.
 window.openSettings=function(){var d=document.getElementById('drawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
@@ -200,7 +207,7 @@ async function loadMembers(){
   );
   if(missing.length){
     const ins = await apiInsert('members',
-      missing.map(([code,name])=>({code,name}))
+      missing.map(([code,name])=>({code,name,mobile:null}))
     );
     if(!ins.error) members = [...members, ...(ins.data||[])];
   }
@@ -239,75 +246,146 @@ function syncMemberNamesToForms(){
   };
 }
 
-async function addMember(){
+async function saveNewMember(){
   if(!db) return toast('Database connection unavailable');
-  const name=prompt('Enter new name');
-  if(name===null) return;
-  name=name.trim();
-  if(!name) return toast('Name required');
+  const nameEl=$('newMemberName'), mobileEl=$('newMemberMobile');
+  const name=(nameEl?.value||'').trim();
+  const mobile=(mobileEl?.value||'').trim();
 
-  if(members.some(m=>m.name.toLowerCase()===name.toLowerCase()))
+  if(!name) return toast('Name required');
+  if(members.some(m=>String(m.name).toLowerCase()===name.toLowerCase()))
     return toast('Name already exists');
 
   const code=nextMemberCode();
-  const r0=await apiInsert('members',{code,name}); const r={data:r0.data?.[0],error:r0.error};
-  if(r.error) return toast('Could not add name');
+  const r0=await apiInsert('members',{code,name,mobile:mobile||null});
+  const r={data:r0.data?.[0],error:r0.error};
+  if(r.error){
+    console.error(r.error);
+    return toast('Could not save name');
+  }
+
   members.push(r.data);
   syncMemberNamesToForms();
   await renderMembers();
   toast('✓ '+name+' saved as '+code);
 }
 
+function addMember(){
+  const box=$('newMemberForm');
+  if(!box) return;
+  box.innerHTML=`
+    <div class="field">
+      <label>Name</label>
+      <input id="newMemberName" type="text" placeholder="Enter name" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Mobile Number</label>
+      <input id="newMemberMobile" type="tel" placeholder="Enter mobile number" inputmode="tel" autocomplete="tel">
+    </div>
+    <div class="actions">
+      <button class="primary" type="button" onclick="saveNewMember()">💾 Save Name</button>
+      <button class="secondary" type="button" onclick="$('newMemberForm').innerHTML=''">Cancel</button>
+    </div>`;
+  $('newMemberName').focus();
+}
 async function renameMember(id){
   if(!db) return;
   const m=members.find(x=>String(x.id)===String(id));
   if(!m) return;
+
   const name=prompt('Edit name (Code '+m.code+' cannot be changed)',m.name);
   if(name===null) return;
   const newName=name.trim();
   if(!newName) return toast('Name required');
-  if(members.some(x=>x.id!==m.id && x.name.toLowerCase()===newName.toLowerCase()))
+  if(members.some(x=>String(x.id)!==String(m.id) &&
+      String(x.name).toLowerCase()===newName.toLowerCase()))
     return toast('Name already exists');
 
-  const r0=await apiUpdate('members',{name:newName},'id',m.id); const r={data:r0.data?.[0],error:r0.error};
-  if(r.error) return toast('Could not update name');
+  const mobile=prompt('Edit mobile number',m.mobile||'');
+  if(mobile===null) return;
 
-  // Keep old payment records associated with the permanent code.
+  const r0=await apiUpdate('members',{name:newName,mobile:mobile.trim()||null},'id',m.id);
+  const r={data:r0.data?.[0],error:r0.error};
+  if(r.error) return toast('Could not update member');
+
   const e=await apiUpdate('entries',{name:newName},'code',m.code);
   if(e.error) console.warn('Entry name sync failed',e.error);
 
   m.name=newName;
+  m.mobile=mobile.trim();
   data=data.map(x=>x.code===m.code?{...x,name:newName}:x);
   syncMemberNamesToForms();
   refresh();
   await renderMembers();
-  toast('✓ Name updated');
+  toast('✓ Member updated');
 }
-
 async function renderMembers(){
   const rows = members.map(m=>`
     <div class="row">
-      <div><b>${esc(m.name)}</b><div class="small">Permanent Code: ${esc(m.code)}</div></div>
-      <button class="secondary" type="button" onclick="renameMember(${Number(m.id)})">Edit Name</button>
+      <div>
+        <b>${esc(m.name)}</b>
+        <div class="small">Code: ${esc(m.code)}</div>
+        <div class="small">Mobile: ${esc(m.mobile||'—')}</div>
+      </div>
+      <button class="secondary" type="button" onclick="renameMember(${Number(m.id)})">Edit</button>
     </div>`).join('');
 
   showSetting('Name & Code',`
     <div class="notice">
       <b>Permanent Code system</b><br>
       New names automatically receive C0001, C0002, C0003…<br>
-      Code cannot be edited. Name can be edited later.
+      Code cannot be edited. Name and mobile number can be edited later.
     </div>
     <div class="actions">
       <button class="primary" type="button" onclick="addMember()">＋ Add Name</button>
     </div>
+    <div id="newMemberForm" style="margin-top:10px"></div>
     <div style="margin-top:10px">
       ${rows || '<div class="small">No names saved yet. Tap “Add Name”.</div>'}
     </div>`);
 }
-$('reportsBtn').addEventListener('click',()=>{
- showSetting('Reports',
- '<div class="notice">Month-wise payment report, given / not-given report, person-wise report എന്നിവ ഇവിടെ വരും.</div>');
-});
+async function renderReports(){
+  if(!members.length) await loadMembers();
+  const months=reportMonthOptions();
+  const people=[...members].sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
+  const firstMonth=months[0] || new Date().toISOString().slice(0,7);
+
+  showSetting('Reports',`
+    <div class="notice">
+      <b>Monthly Collection Report</b><br>
+      Given / Not Given status and total collection for the selected month.
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Month</label>
+      <select id="reportMonth">
+        ${months.map(m=>`<option value="${esc(m)}" ${m===firstMonth?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}
+      </select>
+    </div>
+    <div class="actions">
+      <button class="primary" type="button" id="monthReportBtn">Show Monthly Report</button>
+      <button class="secondary" type="button" id="printReportBtn">🖨 Print</button>
+    </div>
+    <div id="reportSummary"></div>
+    <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+    <div class="notice">
+      <b>Person-wise Report</b><br>
+      Check one person's Given / Not Given status month by month.
+    </div>
+    <div class="field" style="margin-top:12px">
+      <label>Person</label>
+      <select id="reportPerson">
+        <option value="">Select person</option>
+        ${people.map(m=>`<option value="${esc(m.code)}">${esc(m.name)} — ${esc(m.code)}</option>`).join('')}
+      </select>
+    </div>
+    <div id="personReport"></div>`);
+
+  $('monthReportBtn').addEventListener('click',()=>buildMonthReport($('reportMonth').value));
+  $('reportMonth').addEventListener('change',()=>buildMonthReport($('reportMonth').value));
+  $('reportPerson').addEventListener('change',()=>buildPersonReport($('reportPerson').value));
+  $('printReportBtn').addEventListener('click',()=>window.print());
+  buildMonthReport(firstMonth);
+}
 $('permissionsBtn').addEventListener('click',()=>{
  showSetting('User Permissions',
  '<div class="notice"><b>Master Admin:</b> shafithuyyath<br><br>Master Admin-ന് Admin/User permissions manage ചെയ്യാനുള്ള secure system അടുത്ത ഘട്ടത്തിൽ ചേർക്കാം.</div>');
