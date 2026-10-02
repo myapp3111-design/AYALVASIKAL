@@ -146,10 +146,131 @@ function showSetting(title,html){
   $('settingContent').innerHTML='<div class="settingTitle">'+title+'</div>'+html;
 }
 
-$('namesBtn').addEventListener('click',()=>{
- showSetting('Name & Code',
- '<div class="notice">ഇവിടെ saved names-ഉം അവരുടെ permanent C0001, C0002... code-ഉം പിന്നീട് manage ചെയ്യാം.</div>');
+$('namesBtn').addEventListener('click', async ()=>{
+  await renderMembers();
 });
+
+async function loadMembers(){
+  if(!db) return;
+  let r=await db.from('members').select('*').order('id');
+  if(r.error){ console.warn('members load failed', r.error); return; }
+  members = r.data || [];
+
+  // Import any existing entry names/codes into members once, so old saved
+  // payments remain available after introducing the permanent member list.
+  const existing = new Map();
+  for(const x of data){
+    if(x.code && x.name && !existing.has(x.code)) existing.set(x.code, x.name);
+  }
+  const missing = [...existing.entries()].filter(([code,name]) =>
+    !members.some(m=>m.code===code)
+  );
+  if(missing.length){
+    const ins = await db.from('members').insert(
+      missing.map(([code,name])=>({code,name}))
+    ).select();
+    if(!ins.error) members = [...members, ...(ins.data||[])];
+  }
+  syncMemberNamesToForms();
+}
+
+let members=[];
+
+function nextMemberCode(){
+  let max=0;
+  for(const m of members){
+    const n=String(m.code||'').match(/^C(\d+)$/i);
+    if(n) max=Math.max(max, Number(n[1]));
+  }
+  for(const x of data){
+    const n=String(x.code||'').match(/^C(\d+)$/i);
+    if(n) max=Math.max(max, Number(n[1]));
+  }
+  return 'C'+String(max+1).padStart(4,'0');
+}
+
+function syncMemberNamesToForms(){
+  const list = members.length ? members : data.map(x=>({code:x.code,name:x.name}));
+  const unique = [];
+  const seen = new Set();
+  for(const m of list){
+    const key=String(m.code||'')+'|'+String(m.name||'');
+    if(m.name && !seen.has(key)){seen.add(key);unique.push(m);}
+  }
+  $('en').innerHTML='<option value="">Select name</option>'+
+    unique.map(m=>`<option value="${esc(m.code)}">${esc(m.name)}</option>`).join('');
+  $('en').onchange=()=>{
+    const code=$('en').value;
+    const m=unique.find(x=>x.code===code);
+    $('ec').value=m?.code||'';
+  };
+}
+
+async function addMember(){
+  if(!db) return toast('Database connection unavailable');
+  const name=prompt('Enter new name');
+  if(name===null) return;
+  name=name.trim();
+  if(!name) return toast('Name required');
+
+  if(members.some(m=>m.name.toLowerCase()===name.toLowerCase()))
+    return toast('Name already exists');
+
+  const code=nextMemberCode();
+  const r=await db.from('members').insert({code,name}).select().single();
+  if(r.error) return toast('Could not add name');
+  members.push(r.data);
+  syncMemberNamesToForms();
+  await renderMembers();
+  toast('✓ '+name+' saved as '+code);
+}
+
+async function renameMember(id){
+  if(!db) return;
+  const m=members.find(x=>String(x.id)===String(id));
+  if(!m) return;
+  const name=prompt('Edit name (Code '+m.code+' cannot be changed)',m.name);
+  if(name===null) return;
+  const newName=name.trim();
+  if(!newName) return toast('Name required');
+  if(members.some(x=>x.id!==m.id && x.name.toLowerCase()===newName.toLowerCase()))
+    return toast('Name already exists');
+
+  const r=await db.from('members').update({name:newName}).eq('id',m.id).select().single();
+  if(r.error) return toast('Could not update name');
+
+  // Keep old payment records associated with the permanent code.
+  const e=await db.from('entries').update({name:newName}).eq('code',m.code);
+  if(e.error) console.warn('Entry name sync failed',e.error);
+
+  m.name=newName;
+  data=data.map(x=>x.code===m.code?{...x,name:newName}:x);
+  syncMemberNamesToForms();
+  refresh();
+  await renderMembers();
+  toast('✓ Name updated');
+}
+
+async function renderMembers(){
+  const rows = members.map(m=>`
+    <div class="row">
+      <div><b>${esc(m.name)}</b><div class="small">Permanent Code: ${esc(m.code)}</div></div>
+      <button class="secondary" type="button" onclick="renameMember(${Number(m.id)})">Edit Name</button>
+    </div>`).join('');
+
+  showSetting('Name & Code',`
+    <div class="notice">
+      <b>Permanent Code system</b><br>
+      New names automatically receive C0001, C0002, C0003…<br>
+      Code cannot be edited. Name can be edited later.
+    </div>
+    <div class="actions">
+      <button class="primary" type="button" onclick="addMember()">＋ Add Name</button>
+    </div>
+    <div style="margin-top:10px">
+      ${rows || '<div class="small">No names saved yet. Tap “Add Name”.</div>'}
+    </div>`);
+}
 $('reportsBtn').addEventListener('click',()=>{
  showSetting('Reports',
  '<div class="notice">Month-wise payment report, given / not-given report, person-wise report എന്നിവ ഇവിടെ വരും.</div>');
@@ -160,18 +281,20 @@ $('permissionsBtn').addEventListener('click',()=>{
 });
 
 async function load(){
+ if(!db){toast('Database connection unavailable');return}
  let r=await db.from('entries').select('*').order('id');
  if(r.error){toast('Database error');return}
- data=r.data||[];refresh();
+ data=r.data||[];
+ await loadMembers();
+ refresh();
 }
 
 function refresh(){
  let names=[...new Set(data.map(x=>x.name).filter(Boolean))];
  let codes=[...new Set(data.map(x=>x.code).filter(Boolean))];
- $('en').innerHTML='<option value="">Select name</option>'+names.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ syncMemberNamesToForms();
  $('sn').innerHTML='<option value="">All saved names</option>'+names.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
  $('sc').innerHTML='<option value="">All saved codes</option>'+codes.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
- $('en').onchange=()=>{let r=data.find(x=>x.name===$('en').value);$('ec').value=r?.code||''};
  $('total').textContent=money(data.reduce((s,x)=>s+Number(x.amount||0),0));
  let now=new Date();
  let currentMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -205,6 +328,7 @@ $('clearSearchBtn').addEventListener('click',clearSearch);
 async function save(){if(!db)return toast('Database connection unavailable');
  let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();
  if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');
+ if(!members.some(m=>m.code===code && m.name===name))return toast('Select a saved Name & Code');
  if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
  let r=await db.from('entries').insert({code,name,amount,month,remarks}).select().single();
  if(r.error)return toast('Save failed');
