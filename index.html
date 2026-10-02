@@ -1,23 +1,218 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0f172a"><link rel="manifest" href="manifest.json"><title>Ayalvasikal</title><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><style>:root{--ink:#122033;--muted:#718096;--line:#e6ebf2;--accent:#0f766e;--bg:#f4f7fb}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(145deg,#fbfcfe,#edf4f5);color:var(--ink)}button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}.top{max-width:1050px;margin:auto;padding:18px;display:flex;justify-content:space-between;align-items:center}.brand{font-weight:850;font-size:21px;letter-spacing:.5px}.gear{background:#fff;border:1px solid var(--line);padding:10px 13px;border-radius:12px}.wrap{max-width:1050px;margin:auto;padding:5px 18px 45px}.total{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:24px;padding:27px;box-shadow:0 18px 45px #0f172a18}.label{text-transform:uppercase;font-size:12px;letter-spacing:1.7px;opacity:.7}.value{font-size:42px;font-weight:900;margin-top:7px}.search{width:100%;margin:16px 0;padding:15px;border-radius:16px;background:var(--accent);color:#fff;font-weight:800;box-shadow:0 12px 28px #0f766e25}.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:15px;box-shadow:0 9px 28px #0f172a09;animation:up .2s ease}@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}.hidden{display:none}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.full{grid-column:1/-1}.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:750}.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe;outline:none}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary{background:var(--accent);color:#fff;padding:11px 15px;border-radius:12px;font-weight:750}.secondary{background:#eef2f5;color:#243447;padding:11px 15px;border-radius:12px;font-weight:750}.months{display:flex;flex-wrap:wrap;gap:7px}.month{background:#fff;border:1px solid var(--line);padding:8px 10px;border-radius:10px;font-size:13px}.month.on{background:#dcf3ef;border-color:#81c8c0;color:#075e57;font-weight:800}.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #edf1f5}.small{font-size:12px;color:var(--muted)}.drawer{position:fixed;inset:0;background:#0f172a55;z-index:20}.drawerBox{height:100%;width:min(350px,88vw);background:#fff;padding:20px;animation:slide .2s ease}@keyframes slide{from{transform:translateX(-100%)}to{transform:none}}.menu{display:block;width:100%;text-align:left;padding:13px;margin:8px 0;background:#f5f7fa;border-radius:12px;font-weight:750}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#102a2a;color:#fff;padding:12px 17px;border-radius:13px;z-index:40;animation:pop .2s ease}.receipt{border:1px dashed #aeb9c6;border-radius:16px;padding:20px;background:#fff;max-width:520px;margin:auto}.receipt h2{text-align:center;margin:0 0 14px}.receiptLine{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #edf1f5}@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.value{font-size:35px}}</style></head><body><div class="top"><div class="brand">AYALVASIKAL</div><button class="gear" onclick="settings(true)">⚙ Settings</button></div><main class="wrap">
-    <section id="announcementPanel" class="panel hidden" style="padding:10px">
-      <img id="announcementImage" alt="Announcement" style="display:block;width:100%;max-height:260px;object-fit:cover;border-radius:15px">
-    </section><section class="total"><div class="label">Total Collection</div><div class="value" id="total">QAR 0.00</div></section><button class="search" onclick="toggle('search')">🔎 Search</button><section id="search" class="card hidden"><div class="grid"><div class="field"><label>Name (saved names only)</label><select id="sn"><option value="">All saved names</option></select></div><div class="field"><label>Code</label><select id="sc"><option value="">All saved codes</option></select></div><div class="field"><label>Amount</label><input id="sa" type="number" step="0.01"></div><div class="field full"><label>Month + Year (multiple)</label><div id="months" class="months"></div></div><div class="field full"><label>Remarks</label><input id="sr" placeholder="Search saved remarks"></div></div><div class="actions"><button class="primary" onclick="searchRows()">Search</button><button class="secondary" onclick="clearSearch()">Clear</button></div><div id="results"></div></section><section class="card"><div class="grid"><div class="field"><label>Saved Name</label><select id="en"><option value="">Select name</option></select></div><div class="field"><label>Code</label><input id="ec" readonly></div><div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01"></div><div class="field"><label>Month + Year</label><input id="em" type="month"></div><div class="field full"><label>Remarks</label><textarea id="er" rows="2"></textarea></div></div><div class="actions"><button class="primary" onclick="save()">💾 Save Payment</button><button class="secondary" onclick="clearEntry()">Clear</button></div></section><section id="receiptCard" class="card hidden"><div id="receipt" class="receipt"></div><div class="actions"><button class="primary" onclick="share()">📱 Share Receipt to WhatsApp</button><button class="secondary" onclick="print()">🖨 Print</button></div></section></main><div id="drawer" class="drawer hidden" onclick="settings(false)"><div class="drawerBox" onclick="event.stopPropagation()"><button class="secondary" onclick="settings(false)">Close</button><h3>Settings</h3><button class="menu" onclick="namesCodes()">👥 Name & Code</button><button class="menu" onclick="reports()">📊 Reports</button><button class="menu" onclick="permissions()">👑 User Permissions</button><div id="settingContent"></div></div></div><div id="toast" class="toast hidden"></div><script>
-const URL='https://lfyejyjwyoovocsrolma.supabase.co',KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G',db=supabase.createClient(URL,KEY);let data=[],months=new Set(),last=null;
-const $=id=>document.getElementById(id),money=n=>'QAR '+Number(n||0).toFixed(2),esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-function toast(x){$('toast').textContent=x;$('toast').classList.remove('hidden');setTimeout(()=>$('toast').classList.add('hidden'),1800)}
-async function load(){let r=await db.from('entries').select('*').order('id');if(r.error){toast('Database error');return}data=r.data||[];refresh();}
-function refresh(){let names=[...new Set(data.map(x=>x.name).filter(Boolean))],codes=[...new Set(data.map(x=>x.code).filter(Boolean))];$('en').innerHTML='<option value="">Select name</option>'+names.map(x=>`<option>${esc(x)}</option>`).join('');$('sn').innerHTML='<option value="">All saved names</option>'+names.map(x=>`<option>${esc(x)}</option>`).join('');$('sc').innerHTML='<option value="">All saved codes</option>'+codes.map(x=>`<option>${esc(x)}</option>`).join('');$('en').onchange=()=>{let r=data.find(x=>x.name===$('en').value);$('ec').value=r?.code||''};$('total').textContent=money(data.reduce((s,x)=>s+Number(x.amount||0),0));buildMonths();searchRows()}
-function buildMonths(){let m=[...new Set(data.map(x=>x.month).filter(Boolean))].sort().reverse();$('months').innerHTML=m.map(x=>`<button class="month ${months.has(x)?'on':''}" onclick="pick('${x}')">${x}</button>`).join('')||'<span class="small">Saved months will appear here</span>'}
-function pick(m){months.has(m)?months.delete(m):months.add(m);buildMonths()}
-function toggle(id){$(id).classList.toggle('hidden')}
-function clearSearch(){$('sn').value='';$('sc').value='';$('sa').value='';$('sr').value='';months.clear();buildMonths();searchRows()}
-function searchRows(){let a=[...data],n=$('sn').value,c=$('sc').value,am=$('sa').value,q=$('sr').value.trim().toLowerCase();if(n)a=a.filter(x=>x.name===n);if(c)a=a.filter(x=>x.code===c);if(am)a=a.filter(x=>Number(x.amount)===Number(am));if(months.size)a=a.filter(x=>months.has(x.month));if(q)a=a.filter(x=>(x.remarks||'').toLowerCase().includes(q));let t=a.reduce((s,x)=>s+Number(x.amount||0),0);$('results').innerHTML=`<div class="small" style="padding:12px 0">${a.length} result(s) · Total ${money(t)}</div>`+a.map(x=>`<div class="row"><div><b>${esc(x.name)}</b> <span class="small">${esc(x.code)}</span><div class="small">${esc(x.month)} · ${esc(x.remarks||'')}</div></div><b>${money(x.amount)}</b></div>`).join('')+(a.length?'':'<div class="small">No matching saved records.</div>')}
-async function save(){let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');let r=await db.from('entries').insert({code,name,amount,month,remarks}).select().single();if(r.error)return toast('Save failed');data.push(r.data);last={...r.data,date:new Date().toLocaleDateString('en-GB')};refresh();receipt();clearEntry();toast('✓ Payment saved')}
-function clearEntry(){$('en').value='';$('ec').value='';$('ea').value='';$('em').value='';$('er').value=''}
-function receipt(){let r=last;$('receiptCard').classList.remove('hidden');$('receipt').innerHTML=`<h2>AYALVASIKAL</h2><div class="small" style="text-align:center">Payment Receipt</div><div class="receiptLine"><span>Name</span><b>${esc(r.name)}</b></div><div class="receiptLine"><span>Code</span><b>${esc(r.code)}</b></div><div class="receiptLine"><span>Month</span><b>${esc(r.month)}</b></div><div class="receiptLine"><span>Date</span><b>${r.date}</b></div><div class="receiptLine"><span>Amount</span><b>${money(r.amount)}</b></div><div class="receiptLine"><span>Remarks</span><b>${esc(r.remarks||'-')}</b></div>`;$('receiptCard').scrollIntoView({behavior:'smooth'})}
-function share(){if(!last)return;let r=last,t=`AYALVASIKAL\nPayment Receipt\n\nName: ${r.name}\nCode: ${r.code}\nMonth: ${r.month}\nDate: ${r.date}\nAmount: ${money(r.amount)}\nRemarks: ${r.remarks||'-'}`;location.href='https://wa.me/?text='+encodeURIComponent(t)}
-function settings(v){$('drawer').classList.toggle('hidden',!v)}
-function namesCodes(){$('settingContent').innerHTML='<div class="card"><b>Name & Code</b><p class="small">Next secure admin step: create, edit and permanently associate C0001, C0002… with saved names.</p></div>'}
-function reports(){$('settingContent').innerHTML='<div class="card"><b>Reports</b><p class="small">Month-wise given/not-given and person-wise reports will be enabled with the secure user-permission layer.</p></div>'}
-function permissions(){$('settingContent').innerHTML='<div class="card"><b>User Permissions</b><p class="small">Admin/User access will be enabled securely before real users are added.</p></div>'}
-load();</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="manifest.json">
+<title>Ayalvasikal</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--ink:#122033;--muted:#718096;--line:#e6ebf2;--accent:#0f766e;--bg:#f4f7fb}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;background:linear-gradient(145deg,#fbfcfe,#edf4f5);color:var(--ink)}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
+.top{max-width:1050px;margin:auto;padding:18px;display:flex;justify-content:space-between;align-items:center}
+.brand{font-weight:850;font-size:21px;letter-spacing:.5px}.gear{background:#fff;border:1px solid var(--line);padding:10px 13px;border-radius:12px}
+.wrap{max-width:1050px;margin:auto;padding:5px 18px 45px}
+.total{background:linear-gradient(135deg,#0f172a,#1e293b);color:#fff;border-radius:24px;padding:27px;box-shadow:0 18px 45px #0f172a18}
+.label{text-transform:uppercase;font-size:12px;letter-spacing:1.7px;opacity:.7}.value{font-size:42px;font-weight:900;margin-top:7px}
+.search{width:100%;margin:16px 0;padding:15px;border-radius:16px;background:var(--accent);color:#fff;font-weight:800;box-shadow:0 12px 28px #0f766e25}
+.card{background:#fff;border:1px solid var(--line);border-radius:20px;padding:17px;margin-bottom:15px;box-shadow:0 9px 28px #0f172a09;animation:up .2s ease}
+@keyframes up{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.hidden{display:none!important}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px}.full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:6px}.field label{font-size:12px;color:var(--muted);font-weight:750}
+.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfcfe;outline:none}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.primary{background:var(--accent);color:#fff;padding:11px 15px;border-radius:12px;font-weight:750}.secondary{background:#eef2f5;color:#243447;padding:11px 15px;border-radius:12px;font-weight:750}
+.months{display:flex;flex-wrap:wrap;gap:7px}.month{background:#fff;border:1px solid var(--line);padding:8px 10px;border-radius:10px;font-size:13px}.month.on{background:#dcf3ef;border-color:#81c8c0;color:#075e57;font-weight:800}
+.row{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #edf1f5}.small{font-size:12px;color:var(--muted)}
+.drawer{position:fixed;inset:0;background:#0f172a66;z-index:9999}.drawerBox{height:100%;width:min(380px,90vw);background:#fff;padding:20px;animation:slide .22s ease;overflow:auto}
+@keyframes slide{from{transform:translateX(-100%)}to{transform:none}}
+.menu{display:block;width:100%;text-align:left;padding:13px;margin:8px 0;background:#f5f7fa;border-radius:12px;font-weight:750}
+.menu:hover{background:#e8eeee}.toast{position:fixed;bottom:25px;left:50%;transform:translateX(-50%);background:#102a2a;color:#fff;padding:12px 17px;border-radius:13px;z-index:10000;animation:pop .2s ease}
+.receipt{border:1px dashed #aeb9c6;border-radius:16px;padding:20px;background:#fff;max-width:520px;margin:auto}.receipt h2{text-align:center;margin:0 0 14px}.receiptLine{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #edf1f5}
+.settingTitle{font-size:18px;font-weight:850;margin:15px 0 8px}.notice{padding:12px;border-radius:12px;background:#f3f7f7;margin-top:10px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.value{font-size:35px}.top{padding:14px}.wrap{padding:5px 12px 35px}}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">AYALVASIKAL</div>
+  <button id="settingsBtn" class="gear" type="button">⚙ Settings</button>
+</div>
+
+<main class="wrap">
+<section id="announcementPanel" class="card hidden">
+<img id="announcementImage" alt="Announcement" style="display:block;width:100%;max-height:260px;object-fit:cover;border-radius:15px">
+</section>
+
+<section class="total">
+<div class="label">Total Collection</div>
+<div class="value" id="total">QAR 0.00</div>
+</section>
+
+<button class="search" type="button" id="searchBtn">🔎 Search</button>
+
+<section id="search" class="card hidden">
+<div class="grid">
+<div class="field"><label>Name (saved names only)</label><select id="sn"><option value="">All saved names</option></select></div>
+<div class="field"><label>Code</label><select id="sc"><option value="">All saved codes</option></select></div>
+<div class="field"><label>Amount</label><input id="sa" type="number" step="0.01"></div>
+<div class="field full"><label>Month + Year (multiple)</label><div id="months" class="months"></div></div>
+<div class="field full"><label>Remarks</label><input id="sr" placeholder="Search saved remarks"></div>
+</div>
+<div class="actions"><button class="primary" id="doSearch">Search</button><button class="secondary" id="clearSearchBtn">Clear</button></div>
+<div id="results"></div>
+</section>
+
+<section class="card">
+<div class="grid">
+<div class="field"><label>Saved Name</label><select id="en"><option value="">Select name</option></select></div>
+<div class="field"><label>Code</label><input id="ec" readonly></div>
+<div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01"></div>
+<div class="field"><label>Month + Year</label><input id="em" type="month"></div>
+<div class="field full"><label>Remarks</label><textarea id="er" rows="2"></textarea></div>
+</div>
+<div class="actions"><button class="primary" id="saveBtn">💾 Save Payment</button><button class="secondary" id="clearBtn">Clear</button></div>
+</section>
+
+<section id="receiptCard" class="card hidden">
+<div id="receipt" class="receipt"></div>
+<div class="actions"><button class="primary" id="shareBtn">📱 Share Receipt to WhatsApp</button><button class="secondary" id="printBtn">🖨 Print</button></div>
+</section>
+</main>
+
+<div id="drawer" class="drawer hidden" aria-hidden="true">
+<div class="drawerBox" id="drawerBox">
+<button class="secondary" type="button" id="closeSettings">✕ Close</button>
+<h3>Settings</h3>
+<button class="menu" type="button" id="namesBtn">👥 Name & Code</button>
+<button class="menu" type="button" id="reportsBtn">📊 Reports</button>
+<button class="menu" type="button" id="permissionsBtn">👑 User Permissions</button>
+<div id="settingContent"></div>
+</div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const URL='https://lfyejyjwyoovocsrolma.supabase.co';
+const KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G';
+const db=supabase.createClient(URL,KEY);
+let data=[],months=new Set(),last=null;
+
+const $=id=>document.getElementById(id);
+const money=n=>'QAR '+Number(n||0).toFixed(2);
+const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+function toast(x){
+  $('toast').textContent=x;
+  $('toast').classList.remove('hidden');
+  setTimeout(()=>$('toast').classList.add('hidden'),1800);
+}
+
+function openSettings(){
+  $('drawer').classList.remove('hidden');
+  $('drawer').setAttribute('aria-hidden','false');
+}
+function closeSettings(){
+  $('drawer').classList.add('hidden');
+  $('drawer').setAttribute('aria-hidden','true');
+}
+$('settingsBtn').addEventListener('click',openSettings);
+$('closeSettings').addEventListener('click',closeSettings);
+$('drawer').addEventListener('click',e=>{if(e.target===$('drawer'))closeSettings();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+
+function showSetting(title,html){
+  $('settingContent').innerHTML='<div class="settingTitle">'+title+'</div>'+html;
+}
+
+$('namesBtn').addEventListener('click',()=>{
+ showSetting('Name & Code',
+ '<div class="notice">ഇവിടെ saved names-ഉം അവരുടെ permanent C0001, C0002... code-ഉം പിന്നീട് manage ചെയ്യാം.</div>');
+});
+$('reportsBtn').addEventListener('click',()=>{
+ showSetting('Reports',
+ '<div class="notice">Month-wise payment report, given / not-given report, person-wise report എന്നിവ ഇവിടെ വരും.</div>');
+});
+$('permissionsBtn').addEventListener('click',()=>{
+ showSetting('User Permissions',
+ '<div class="notice"><b>Master Admin:</b> shafithuyyath<br><br>Master Admin-ന് Admin/User permissions manage ചെയ്യാനുള്ള secure system അടുത്ത ഘട്ടത്തിൽ ചേർക്കാം.</div>');
+});
+
+async function load(){
+ let r=await db.from('entries').select('*').order('id');
+ if(r.error){toast('Database error');return}
+ data=r.data||[];refresh();
+}
+
+function refresh(){
+ let names=[...new Set(data.map(x=>x.name).filter(Boolean))];
+ let codes=[...new Set(data.map(x=>x.code).filter(Boolean))];
+ $('en').innerHTML='<option value="">Select name</option>'+names.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ $('sn').innerHTML='<option value="">All saved names</option>'+names.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ $('sc').innerHTML='<option value="">All saved codes</option>'+codes.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ $('en').onchange=()=>{let r=data.find(x=>x.name===$('en').value);$('ec').value=r?.code||''};
+ $('total').textContent=money(data.reduce((s,x)=>s+Number(x.amount||0),0));
+ buildMonths();searchRows();
+}
+
+function buildMonths(){
+ let m=[...new Set(data.map(x=>x.month).filter(Boolean))].sort().reverse();
+ $('months').innerHTML=m.map(x=>`<button type="button" class="month ${months.has(x)?'on':''}" onclick="pickMonth('${x}')">${x}</button>`).join('')||'<span class="small">Saved months will appear here</span>';
+}
+function pickMonth(m){months.has(m)?months.delete(m):months.add(m);buildMonths();}
+
+function searchRows(){
+ let a=[...data],n=$('sn').value,c=$('sc').value,am=$('sa').value,q=$('sr').value.trim().toLowerCase();
+ if(n)a=a.filter(x=>x.name===n);if(c)a=a.filter(x=>x.code===c);if(am)a=a.filter(x=>Number(x.amount)===Number(am));
+ if(months.size)a=a.filter(x=>months.has(x.month));if(q)a=a.filter(x=>(x.remarks||'').toLowerCase().includes(q));
+ let t=a.reduce((s,x)=>s+Number(x.amount||0),0);
+ $('results').innerHTML=`<div class="small" style="padding:12px 0">${a.length} result(s) · Total ${money(t)}</div>`+
+ a.map(x=>`<div class="row"><div><b>${esc(x.name)}</b> <span class="small">${esc(x.code)}</span><div class="small">${esc(x.month)} · ${esc(x.remarks||'')}</div></div><b>${money(x.amount)}</b></div>`).join('')+
+ (a.length?'':'<div class="small">No matching saved records.</div>');
+}
+function clearSearch(){$('sn').value='';$('sc').value='';$('sa').value='';$('sr').value='';months.clear();buildMonths();searchRows();}
+
+$('searchBtn').addEventListener('click',()=>{$('search').classList.toggle('hidden');});
+$('doSearch').addEventListener('click',searchRows);
+$('clearSearchBtn').addEventListener('click',clearSearch);
+
+async function save(){
+ let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();
+ if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');
+ if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
+ let r=await db.from('entries').insert({code,name,amount,month,remarks}).select().single();
+ if(r.error)return toast('Save failed');
+ data.push(r.data);last={...r.data,date:new Date().toLocaleDateString('en-GB')};
+ refresh();receipt();clearEntry();toast('✓ Payment saved');
+}
+$('saveBtn').addEventListener('click',save);
+
+function clearEntry(){$('en').value='';$('ec').value='';$('ea').value='';$('em').value='';$('er').value='';}
+$('clearBtn').addEventListener('click',clearEntry);
+
+function receipt(){
+ let r=last;
+ $('receiptCard').classList.remove('hidden');
+ $('receipt').innerHTML=`<h2>AYALVASIKAL</h2><div class="small" style="text-align:center">Payment Receipt</div>
+ <div class="receiptLine"><span>Name</span><b>${esc(r.name)}</b></div>
+ <div class="receiptLine"><span>Code</span><b>${esc(r.code)}</b></div>
+ <div class="receiptLine"><span>Month</span><b>${esc(r.month)}</b></div>
+ <div class="receiptLine"><span>Date</span><b>${r.date}</b></div>
+ <div class="receiptLine"><span>Amount</span><b>${money(r.amount)}</b></div>
+ <div class="receiptLine"><span>Remarks</span><b>${esc(r.remarks||'-')}</b></div>`;
+ $('receiptCard').scrollIntoView({behavior:'smooth'});
+}
+function share(){
+ if(!last)return;
+ let r=last,t=`AYALVASIKAL\nPayment Receipt\n\nName: ${r.name}\nCode: ${r.code}\nMonth: ${r.month}\nDate: ${r.date}\nAmount: ${money(r.amount)}\nRemarks: ${r.remarks||'-'}`;
+ location.href='https://wa.me/?text='+encodeURIComponent(t);
+}
+$('shareBtn').addEventListener('click',share);
+$('printBtn').addEventListener('click',()=>window.print());
+
+load();
+</script>
+</body>
+</html>
