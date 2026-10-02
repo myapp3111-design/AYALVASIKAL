@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ayalvasikal V1</title>
+<link rel="manifest" href="manifest.json">
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f5f7;color:#202124}
+.container{max-width:1050px;margin:auto;padding:18px}
+header{background:#fff;padding:18px;border-radius:14px;margin-bottom:16px;box-shadow:0 2px 10px #00000012}
+h1{margin:0 0 4px;font-size:28px}.sub{color:#777}
+.card{background:#fff;border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px #00000012}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+label{font-weight:700;font-size:14px;margin-bottom:6px;display:block}
+input,button{width:100%;padding:11px 12px;border:1px solid #d5d9df;border-radius:9px;font-size:15px}
+button{cursor:pointer;background:#111827;color:white;border:0;font-weight:700}
+button.secondary{background:#e9edf2;color:#111827}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}
+.total{font-size:20px;font-weight:700}
+.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:760px}
+th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}th{background:#f7f8fa}
+.smallbtn{width:auto;padding:7px 10px;font-size:13px;margin-right:4px}
+.search{margin-bottom:12px}
+.empty{text-align:center;color:#777;padding:25px}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.actions{grid-template-columns:1fr}.container{padding:10px}h1{font-size:24px}}
+@media print{body{background:#fff}.no-print{display:none!important}.card{box-shadow:none;border:1px solid #ddd}table{min-width:0;font-size:12px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Ayalvasikal</h1>
+<div class="sub">Simple Entry & Report — V1 Test</div>
+</header>
+
+<section class="card no-print">
+<h2 id="formTitle">New Entry</h2>
+<div class="grid">
+<div><label>Code</label><input id="code" readonly></div>
+<div><label>Name</label><input id="name" placeholder="Enter name"></div>
+<div><label>Amount</label><input id="amount" type="number" step="0.01" placeholder="0.00"></div>
+<div><label>Month</label><input id="month" type="month"></div>
+<div style="grid-column:1/-1"><label>Remarks</label><input id="remarks" placeholder="Enter remarks"></div>
+</div>
+<div class="actions">
+<button id="saveBtn" onclick="saveEntry()">SAVE ENTRY</button>
+<button class="secondary" onclick="clearForm()">CLEAR</button>
+</div>
+</section>
+
+<section class="card">
+<div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+<h2 style="margin:0">Report</h2>
+<div class="total">Total: <span id="total">0.00</span></div>
+</div>
+<div class="no-print" style="margin-top:14px">
+<input class="search" id="search" placeholder="Search Code, Name, Month or Remarks..." oninput="render()">
+<button onclick="window.print()">PRINT / PDF</button>
+</div>
+<div class="table-wrap" style="margin-top:12px">
+<table>
+<thead><tr><th>Code</th><th>Name</th><th>Amount</th><th>Month</th><th>Remarks</th><th class="no-print">Action</th></tr></thead>
+<tbody id="rows"></tbody>
+</table>
+<div id="empty" class="empty">No entries yet.</div>
+</div>
+</section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = "https://lfyejyjwyoovocsrolma.supabase.co";
+const SUPABASE_KEY = "sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G";
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let entries = [];
+let editingId = null;
+
+async function loadEntries(){
+  const { data, error } = await db.from("entries").select("*").order("id",{ascending:true});
+  if(error){ alert("Database error: " + error.message); return; }
+  entries = data || [];
+  render();
+  setNewCode();
+}
+
+function nextCode(){
+  let max=0;
+  entries.forEach(e=>{
+    const n=parseInt(String(e.code||"").replace(/^C/i,""));
+    if(!isNaN(n)) max=Math.max(max,n);
+  });
+  return "C"+String(max+1).padStart(4,"0");
+}
+function setNewCode(){ document.getElementById("code").value=nextCode(); }
+
+async function saveEntry(){
+  const name=document.getElementById("name").value.trim();
+  const amount=parseFloat(document.getElementById("amount").value);
+  const month=document.getElementById("month").value;
+  const remarks=document.getElementById("remarks").value.trim();
+
+  if(!name){alert("Name is required");return}
+  if(isNaN(amount)){alert("Amount is required");return}
+  if(!month){alert("Month is required");return}
+
+  if(editingId){
+    const {error}=await db.from("entries").update({name,amount,month,remarks}).eq("id",editingId);
+    if(error){alert("Update failed: "+error.message);return}
+  }else{
+    const {error}=await db.from("entries").insert({
+      code:document.getElementById("code").value,
+      name, amount, month, remarks
+    });
+    if(error){
+      if(error.code==="23505"){ await loadEntries(); alert("Code conflict. Please press SAVE again."); return; }
+      alert("Save failed: "+error.message); return;
+    }
+  }
+  clearForm();
+  await loadEntries();
+}
+
+function editEntry(id){
+  const e=entries.find(x=>String(x.id)===String(id)); if(!e)return;
+  editingId=e.id;
+  document.getElementById("formTitle").textContent="Edit Entry";
+  document.getElementById("code").value=e.code;
+  document.getElementById("name").value=e.name;
+  document.getElementById("amount").value=e.amount;
+  document.getElementById("month").value=e.month;
+  document.getElementById("remarks").value=e.remarks||"";
+  document.getElementById("saveBtn").textContent="UPDATE ENTRY";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+async function deleteEntry(id){
+  if(!confirm("Delete this entry?"))return;
+  const {error}=await db.from("entries").delete().eq("id",id);
+  if(error){alert("Delete failed: "+error.message);return}
+  await loadEntries();
+  setNewCode();
+}
+
+function clearForm(){
+  editingId=null;
+  document.getElementById("formTitle").textContent="New Entry";
+  document.getElementById("saveBtn").textContent="SAVE ENTRY";
+  document.getElementById("name").value="";
+  document.getElementById("amount").value="";
+  document.getElementById("month").value="";
+  document.getElementById("remarks").value="";
+  setNewCode();
+}
+
+function render(){
+  const q=document.getElementById("search").value.trim().toLowerCase();
+  const filtered=entries.filter(e=>
+    [e.code,e.name,e.month,e.remarks].join(" ").toLowerCase().includes(q)
+  );
+  const tbody=document.getElementById("rows"); tbody.innerHTML="";
+  let total=0;
+  filtered.forEach(e=>{
+    total+=Number(e.amount)||0;
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${esc(e.code)}</td><td>${esc(e.name)}</td><td>${Number(e.amount).toFixed(2)}</td><td>${esc(e.month)}</td><td>${esc(e.remarks||"")}</td><td class="no-print"><button class="smallbtn" onclick="editEntry('${e.id}')">Edit</button><button class="smallbtn" onclick="deleteEntry('${e.id}')">Delete</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById("total").textContent=total.toFixed(2);
+  document.getElementById("empty").style.display=filtered.length?"none":"block";
+}
+function esc(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+
+loadEntries();
+</script>
+</body>
+</html>
