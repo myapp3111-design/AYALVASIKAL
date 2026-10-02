@@ -80,15 +80,28 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="authGate" class="authGate">
   <div class="authCard">
     <div class="authBrand">AYALVASIKAL</div>
-    <div class="authSub">Secure Login</div>
-    <div class="field"><label>Username</label><input id="loginUsername" type="text" autocomplete="username" placeholder="Enter username"></div>
-    <div class="field" style="margin-top:10px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password"></div>
-    <div id="authError" class="authError"></div>
-    <div class="authActions">
-      <button class="primary" type="button" id="loginBtn">🔐 Login</button>
-      <div class="authInfo" style="margin-top:12px">Master Admin login is linked to the Supabase Auth account for <b>myapp3111@gmail.com</b>.</div>
+    <div class="authSub" id="authTitle">Login</div>
+    <div id="loginForm">
+      <div class="field"><label>Username</label><input id="loginUsername" type="text" autocomplete="username" placeholder="Enter username"></div>
+      <div class="field" style="margin-top:10px"><label>Password</label><input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password"></div>
+      <div id="authError" class="authError"></div>
+      <div class="authActions">
+        <button class="primary" type="button" id="loginBtn">🔐 Login</button>
+        <button class="secondary" type="button" id="showCreateBtn">＋ Create Account</button>
+      </div>
+      <div class="authInfo">New users can create an account without email. Admin approval is required before the account can be used.</div>
     </div>
-    <div class="authInfo">Master Admin username: <b>shafithuyyath</b><br>Password is handled by Supabase Authentication and is not stored in the profile table.</div>
+    <div id="createForm" class="hidden">
+      <div class="field"><label>Username</label><input id="regUsername" type="text" autocomplete="username" placeholder="Choose username"></div>
+      <div class="field" style="margin-top:10px"><label>Name</label><input id="regName" type="text" placeholder="Your name"></div>
+      <div class="field" style="margin-top:10px"><label>Password</label><input id="regPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters"></div>
+      <div class="field" style="margin-top:10px"><label>Confirm Password</label><input id="regPassword2" type="password" autocomplete="new-password" placeholder="Repeat password"></div>
+      <div id="regError" class="authError"></div>
+      <div class="authActions">
+        <button class="primary" type="button" id="registerBtn">Create</button>
+        <button class="secondary" type="button" id="backLoginBtn">← Back to Login</button>
+      </div>
+    </div>
     <div id="sessionUser" class="sessionUser"></div>
   </div>
 </div>
@@ -167,7 +180,7 @@ function authEmail(username, profile){
   const u=String(username||'').trim().toLowerCase();
   if(profile && profile.email) return String(profile.email).trim().toLowerCase();
   if(u==='shafithuyyath') return 'myapp3111@gmail.com';
-  return '';
+  return u ? (u + '@ayalvasikal.local') : '';
 }
 function authMessage(j){ return j?.msg || j?.message || j?.error_description || j?.error || 'Authentication failed'; }
 async function authRequest(path,body){
@@ -185,8 +198,12 @@ async function authSignIn(username,password,profile){
 async function authSignUp(email,password,username){
   return authRequest('/signup',{email,password,data:{username}});
 }
-function showAuthError(msg){const e=$('authError');e.textContent=msg;e.style.display='block';}
-function clearAuthError(){const e=$('authError');e.textContent='';e.style.display='none';}
+function showAuthError(msg){const e=$('authError');if(e){e.textContent=msg;e.style.display='block';}}
+function clearAuthError(){const e=$('authError');if(e){e.textContent='';e.style.display='none';}}
+function showRegError(msg){const e=$('regError');if(e){e.textContent=msg;e.style.display='block';}}
+function clearRegError(){const e=$('regError');if(e){e.textContent='';e.style.display='none';}}
+function showCreateForm(){clearAuthError();$('loginForm').classList.add('hidden');$('createForm').classList.remove('hidden');$('authTitle').textContent='Create Account';}
+function showLoginForm(){clearRegError();$('createForm').classList.add('hidden');$('loginForm').classList.remove('hidden');$('authTitle').textContent='Login';}
 function setLoggedIn(profile){
   currentUser=profile;
   sessionStorage.setItem('ayalvasikal_user',JSON.stringify({id:profile.id,username:profile.username}));
@@ -207,7 +224,8 @@ async function loginFlow(){
   const username=$('loginUsername').value.trim(), password=$('loginPassword').value;
   if(!username||!password)return showAuthError('Username and password are required.');
   const p=await loadCurrentProfile(username);
-  if(!p)return showAuthError('Username not found. Add the user from Master Admin User Permissions.');
+  if(!p)return showAuthError('Username not found. Create an account first.');
+  if((p.status||'approved')!=='approved') return showAuthError('Your account is waiting for Admin approval.');
   const r=await authSignIn(username,password,p);
   if(r.error){
     const m=authMessage(r.error);
@@ -229,6 +247,29 @@ function bindAuthButtons(){
 }
 bindAuthButtons();
 $('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')loginFlow()});
+$('showCreateBtn').addEventListener('click',showCreateForm);
+$('backLoginBtn').addEventListener('click',showLoginForm);
+$('registerBtn').addEventListener('click',registerAccount);
+async function registerAccount(){
+  clearRegError();
+  const username=$('regUsername').value.trim().toLowerCase();
+  const name=$('regName').value.trim();
+  const password=$('regPassword').value;
+  const password2=$('regPassword2').value;
+  if(!username||!name||!password)return showRegError('Username, Name and Password are required.');
+  if(!/^[a-z0-9._-]{3,30}$/.test(username))return showRegError('Username: 3-30 characters, letters/numbers/dot/dash/underscore only.');
+  if(password.length<8)return showRegError('Password must be at least 8 characters.');
+  if(password!==password2)return showRegError('Passwords do not match.');
+  if(username==='shafithuyyath')return showRegError('This username is reserved.');
+  const r=await fetch(URL+'/functions/v1/register-user',{method:'POST',headers:{'apikey':KEY,'Content-Type':'application/json'},body:JSON.stringify({username,name,password})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)return showRegError(j.error||'Could not create account.');
+  showLoginForm();
+  $('loginUsername').value=username;
+  $('loginPassword').value='';
+  showAuthError('✓ Account created. Admin approval is required before login.');
+  $('authError').style.background='#eefbf3'; $('authError').style.color='#176b3a';
+}
 $('logoutBtn').addEventListener('click',async()=>{try{await fetch(AUTH_BASE+'/logout',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+(sessionStorage.getItem('ayalvasikal_access_token')||KEY)}})}catch(e){} setLoggedOut();location.reload()});
 const apiHeaders={
   'apikey':KEY,
@@ -496,53 +537,62 @@ function readPermissionChecks(prefix){
 }
 function userRow(u){
   const roleLabel=u.role==='master_admin'?'👑 Master Admin':u.role==='admin'?'🛠️ Admin':'👤 User';
-  return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${esc(u.name)}</b><div class="small">Username: ${esc(u.username)}${u.email?' · '+esc(u.email):''}</div><div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div></div>${u.role==='master_admin'?'<span class="small">Protected</span>':`<button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>`}</div>`;
+  const status=(u.status||'approved'); const pending=status==='pending'; const statusHtml=pending?'<span class="small" style="color:#b54708;font-weight:800">⏳ Pending Approval</span>':'<span class="small" style="color:#1f7a4d;font-weight:800">✓ Approved</span>'; return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${esc(u.name)}</b><div class="small">Username: ${esc(u.username)}</div><div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div>${statusHtml}</div>${u.role==='master_admin'?'<span class="small">Protected</span>':`<div class="actions" style="margin-top:0"><button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>${pending?`<button class="primary" type="button" onclick="approveUser(${Number(u.id)})">✓ Approve</button>`:''}</div>`}</div>`;
 }
 function addUserProfileForm(){
   const perms=defaultPermissions('user');
   $('userForm').innerHTML=`<div class="grid">
     <div class="field"><label>Username</label><input id="upUsername" type="text" placeholder="Login username" autocomplete="off"></div>
-    <div class="field"><label>Login Email</label><input id="upEmail" type="email" placeholder="user@example.com" autocomplete="off"></div>
     <div class="field"><label>Name</label><input id="upName" type="text" placeholder="Full name"></div>
     <div class="field"><label>Code</label><input id="upCode" type="text" placeholder="C0001" autocomplete="off"></div>
     <div class="field"><label>Role</label><select id="upRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
     <div class="field"><label>Initial Password</label><input id="upPassword" type="password" minlength="8" placeholder="At least 8 characters"></div>
   </div>
   <div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('up',perms)}</div></div>
-  <div class="small" style="margin-top:8px">Password is sent to Supabase Authentication and is not saved in this profile table.</div>
-  <div class="actions"><button class="primary" type="button" onclick="saveUserProfile()">💾 Save User</button><button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button></div>`;
+  <div class="small" style="margin-top:8px">Password is sent securely to the server-side Supabase Auth function and is not saved in this profile table.</div>
+  <div class="actions"><button class="primary" type="button" onclick="saveUserProfile()">💾 Create User</button><button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button></div>`;
 }
 async function saveUserProfile(){
-  const username=$('upUsername').value.trim().toLowerCase(), email=$('upEmail').value.trim().toLowerCase(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value, password=$('upPassword').value;
-  if(!username||!email||!name||!password)return toast('Username, Login Email, Name and Password required');
+  const username=$('upUsername').value.trim().toLowerCase(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value, password=$('upPassword').value;
+  if(!username||!name||!password)return toast('Username, Name and Password required');
   if(password.length<8)return toast('Password must be at least 8 characters');
   if(username==='shafithuyyath') return toast('Master Admin username is protected');
   if(userProfiles.some(u=>String(u.username).toLowerCase()===username))return toast('Username already exists');
   if(code && userProfiles.some(u=>u.code===code))return toast('Code already assigned');
-  const auth=await authSignUp(email,password,username);
-  if(auth.error){
-    const msg=authMessage(auth.error);
-    return toast(/confirm|confirmation/i.test(msg)?'Disable Supabase email confirmation first':msg);
-  }
-  const r=await apiInsert('user_profiles',{username,email,name,code:code||null,role,permissions:readPermissionChecks('up')});
-  if(r.error){return toast('Profile save failed: '+(r.error.message||''));}
-  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User created');
+  const token=sessionStorage.getItem('ayalvasikal_access_token')||'';
+  if(!token)return toast('Please login again');
+  const r=await fetch(URL+'/functions/v1/admin-create-user',{
+    method:'POST',
+    headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+    body:JSON.stringify({username,name,code:code||null,role,password,permissions:readPermissionChecks('up')})
+  });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)return toast(j.error||'Could not create user');
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User created and login is ready');
 }
 
 async function editUserProfile(id){
   const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin') return;
   const role=u.role==='admin'?'admin':'user';
   const perms=u.permissions||defaultPermissions(role);
-  showSetting('Edit User',`<div class="grid"><div class="field"><label>Username</label><input id="euUsername" value="${esc(u.username)}" disabled></div><div class="field"><label>Login Email</label><input id="euEmail" type="email" value="${esc(u.email||'')}"></div><div class="field"><label>Name</label><input id="euName" value="${esc(u.name)}"></div><div class="field"><label>Code</label><input id="euCode" value="${esc(u.code||'')}"></div><div class="field"><label>Role</label><select id="euRole"><option value="user" ${role==='user'?'selected':''}>User</option><option value="admin" ${role==='admin'?'selected':''}>Admin</option></select></div></div><div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('eu',perms)}</div></div><div class="small" style="margin-top:8px">Username cannot be changed here. Password/login is handled by the secure authentication step.</div><div class="actions"><button class="primary" type="button" onclick="updateUserProfile(${Number(u.id)})">Save Changes</button><button class="secondary" type="button" onclick="renderUserPermissions()">Cancel</button></div>`);
+  showSetting('Edit User',`<div class="grid"><div class="field"><label>Username</label><input id="euUsername" value="${esc(u.username)}" disabled></div><div class="field"><label>Name</label><input id="euName" value="${esc(u.name)}"></div><div class="field"><label>Code</label><input id="euCode" value="${esc(u.code||'')}"></div><div class="field"><label>Role</label><select id="euRole"><option value="user" ${role==='user'?'selected':''}>User</option><option value="admin" ${role==='admin'?'selected':''}>Admin</option></select></div></div><div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('eu',perms)}</div></div><div class="small" style="margin-top:8px">Username cannot be changed here. Password/login is handled by the secure authentication step.</div><div class="actions"><button class="primary" type="button" onclick="updateUserProfile(${Number(u.id)})">Save Changes</button><button class="secondary" type="button" onclick="renderUserPermissions()">Cancel</button></div>`);
 }
 async function updateUserProfile(id){
   const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u)return;
-  const email=$('euEmail').value.trim().toLowerCase(), name=$('euName').value.trim(), code=$('euCode').value.trim(), role=$('euRole').value;
-  if(!email||!name)return toast('Login Email and Name required');
+  const name=$('euName').value.trim(), code=$('euCode').value.trim(), role=$('euRole').value;
+  if(!name)return toast('Name required');
   if(code && userProfiles.some(x=>String(x.id)!==String(id)&&x.code===code))return toast('Code already assigned');
-  const r=await apiUpdate('user_profiles',{email,name,code:code||null,role,permissions:readPermissionChecks('eu')},'id',id);
+  const r=await apiUpdate('user_profiles',{name,code:code||null,role,permissions:readPermissionChecks('eu')},'id',id);
   if(r.error){console.error(r.error);return toast('Update failed');}
   await loadUserProfiles(); await renderUserPermissions(); toast('✓ User updated');
+}
+async function approveUser(id){
+  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
+  const role=confirm('Make this user an Admin?\nOK = Admin, Cancel = User')?'admin':'user';
+  const perms=u.permissions&&Object.keys(u.permissions).length?u.permissions:defaultPermissions(role);
+  const r=await apiUpdate('user_profiles',{status:'approved',role,permissions:perms},'id',id);
+  if(r.error)return toast('Approval failed');
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User approved');
 }
 async function deleteUserProfile(id){
   const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
@@ -555,7 +605,7 @@ async function renderUserPermissions(){
   if(!currentUser || (currentUser.role!=='master_admin' && !(currentUser.permissions||{}).user_permissions)) return toast('You do not have permission to manage users');
   await loadUserProfiles();
   const rows=userProfiles.map(userRow).join('');
-  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.<br><span class="small">Each login user needs a real Supabase Auth email.</span></div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
+  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.<br><span class="small">Users can create their own account with Username + Password. Admin approval is required before login. Master Admin can also create users directly.</span></div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
 }
 function reportMonths(){
   const set=new Set();
