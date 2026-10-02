@@ -35,6 +35,7 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.totalGrid{grid-template-columns:1fr}.value{font-size:35px}.top{padding:14px 10px}.wrap{padding:5px 8px 35px}.card{border-radius:16px;padding:14px}.drawerBox{width:100vw;max-width:none;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom))}.drawerBox .menu{padding:15px}.reportTable{min-width:560px}}
 </style>
 <style>
+.permGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.permItem{display:flex;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13px}.permItem input{width:17px;height:17px}@media(max-width:560px){.permGrid{grid-template-columns:1fr}.drawerBox{width:100%;max-width:none}}
 @media print{
   body{background:#fff!important}
   .top,.search,.card,.gear,.actions button{display:none!important}
@@ -173,6 +174,15 @@ async function apiUpdate(table,values,column,value){
     return r.ok?{data:Array.isArray(j)?j:j?[j]:[],error:null}:{data:null,error:j};
   }catch(e){return {data:null,error:e}}
 }
+async function apiDelete(table,column,value){
+  try{
+    const r=await fetch(`${URL}/rest/v1/${table}?${encodeURIComponent(column)}=eq.${encodeURIComponent(value)}`,{
+      method:'DELETE', headers:{...apiHeaders,'Prefer':'return=representation'}
+    });
+    const j=await r.json().catch(()=>[]);
+    return r.ok?{data:Array.isArray(j)?j:j?[j]:[],error:null}:{data:null,error:j};
+  }catch(e){return {data:null,error:e}}
+}
 let data=[],months=new Set(),last=null;
 
 const $=id=>document.getElementById(id);
@@ -203,6 +213,10 @@ function showSetting(title,html){
 
 $('namesBtn').addEventListener('click', async ()=>{
   await renderMembers();
+});
+
+$('permissionsBtn').addEventListener('click', async ()=>{
+  await renderUserPermissions();
 });
 
 async function loadMembers(){
@@ -358,6 +372,89 @@ async function renderMembers(){
     <div style="margin-top:10px">
       ${rows || '<div class="small">No names saved yet. Tap “Add Name”.</div>'}
     </div>`);
+}
+const permissionDefs=[
+  ['view_all','View all data'],
+  ['add_name','Add Name & Code'],
+  ['edit_name','Edit Name / Mobile'],
+  ['delete_name','Delete Name'],
+  ['add_payment','Add Payment'],
+  ['edit_payment','Edit Payment'],
+  ['delete_payment','Delete Payment'],
+  ['reports','Reports'],
+  ['user_permissions','User Permissions'],
+  ['banner','Banner / Photo']
+];
+let userProfiles=[];
+
+async function loadUserProfiles(){
+  const r=await apiSelect('user_profiles');
+  if(r.error){ console.warn('user_profiles load failed',r.error); return []; }
+  userProfiles=r.data||[];
+  return userProfiles;
+}
+function defaultPermissions(role){
+  if(role==='admin') return {view_all:false,add_name:true,edit_name:true,delete_name:false,add_payment:true,edit_payment:true,delete_payment:false,reports:true,user_permissions:false,banner:false};
+  return {view_all:false,add_name:false,edit_name:false,delete_name:false,add_payment:true,edit_payment:false,delete_payment:false,reports:true,user_permissions:false,banner:false};
+}
+function permissionChecks(prefix,perms){
+  return permissionDefs.map(([key,label])=>`<label class="permItem"><input type="checkbox" id="${prefix}_${key}" ${perms[key]?'checked':''}> <span>${label}</span></label>`).join('');
+}
+function readPermissionChecks(prefix){
+  const p={}; permissionDefs.forEach(([key])=>p[key]=!!$(`${prefix}_${key}`)?.checked); return p;
+}
+function userRow(u){
+  const roleLabel=u.role==='master_admin'?'👑 Master Admin':u.role==='admin'?'🛠️ Admin':'👤 User';
+  return `<div class="row" style="align-items:flex-start"><div style="min-width:0"><b>${esc(u.name)}</b><div class="small">Username: ${esc(u.username)}</div><div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div></div>${u.role==='master_admin'?'<span class="small">Protected</span>':`<button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>`}</div>`;
+}
+function addUserProfileForm(){
+  const perms=defaultPermissions('user');
+  $('userForm').innerHTML=`<div class="grid">
+    <div class="field"><label>Username</label><input id="upUsername" type="text" placeholder="Login username" autocomplete="off"></div>
+    <div class="field"><label>Name</label><input id="upName" type="text" placeholder="Full name"></div>
+    <div class="field"><label>Code</label><input id="upCode" type="text" placeholder="C0001" autocomplete="off"></div>
+    <div class="field"><label>Role</label><select id="upRole"><option value="user">User</option><option value="admin">Admin</option></select></div>
+  </div>
+  <div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('up',perms)}</div></div>
+  <div class="small" style="margin-top:8px">Password/login security will be connected in the next authentication step. Do not enter or store passwords here.</div>
+  <div class="actions"><button class="primary" type="button" onclick="saveUserProfile()">💾 Save User</button><button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button></div>`;
+}
+async function saveUserProfile(){
+  const username=$('upUsername').value.trim(), name=$('upName').value.trim(), code=$('upCode').value.trim(), role=$('upRole').value;
+  if(!username||!name) return toast('Username and Name required');
+  if(username.toLowerCase()==='shafithuyyath') return toast('Master Admin username is protected');
+  if(userProfiles.some(u=>String(u.username).toLowerCase()===username.toLowerCase())) return toast('Username already exists');
+  if(code && userProfiles.some(u=>u.code===code)) return toast('Code already assigned');
+  const r=await apiInsert('user_profiles',{username,name,code:code||null,role,permissions:readPermissionChecks('up')});
+  if(r.error){console.error(r.error);return toast('Could not save user');}
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User saved');
+}
+async function editUserProfile(id){
+  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin') return;
+  const role=u.role==='admin'?'admin':'user';
+  const perms=u.permissions||defaultPermissions(role);
+  showSetting('Edit User',`<div class="grid"><div class="field"><label>Username</label><input id="euUsername" value="${esc(u.username)}" disabled></div><div class="field"><label>Name</label><input id="euName" value="${esc(u.name)}"></div><div class="field"><label>Code</label><input id="euCode" value="${esc(u.code||'')}"></div><div class="field"><label>Role</label><select id="euRole"><option value="user" ${role==='user'?'selected':''}>User</option><option value="admin" ${role==='admin'?'selected':''}>Admin</option></select></div></div><div class="notice" style="margin-top:10px"><b>Permissions</b><div class="permGrid">${permissionChecks('eu',perms)}</div></div><div class="small" style="margin-top:8px">Username cannot be changed here. Password/login is handled by the secure authentication step.</div><div class="actions"><button class="primary" type="button" onclick="updateUserProfile(${Number(u.id)})">Save Changes</button><button class="secondary" type="button" onclick="renderUserPermissions()">Cancel</button></div>`);
+}
+async function updateUserProfile(id){
+  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u)return;
+  const name=$('euName').value.trim(), code=$('euCode').value.trim(), role=$('euRole').value;
+  if(!name)return toast('Name required');
+  if(code && userProfiles.some(x=>String(x.id)!==String(id)&&x.code===code))return toast('Code already assigned');
+  const r=await apiUpdate('user_profiles',{name,code:code||null,role,permissions:readPermissionChecks('eu')},'id',id);
+  if(r.error){console.error(r.error);return toast('Update failed');}
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User updated');
+}
+async function deleteUserProfile(id){
+  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
+  if(!confirm(`Delete user ${u.name}?`))return;
+  const r=await apiDelete('user_profiles','id',id);
+  if(r.error)return toast('Delete failed');
+  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User deleted');
+}
+async function renderUserPermissions(){
+  await loadUserProfiles();
+  const rows=userProfiles.map(userRow).join('');
+  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.</div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
 }
 function reportMonths(){
   const set=new Set();
