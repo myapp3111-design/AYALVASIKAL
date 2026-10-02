@@ -36,10 +36,22 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.totalGrid{grid-template-columns:1fr}.value{font-size:35px}.top{padding:14px}.wrap{padding:5px 12px 35px}}
 </style>
 </head>
-<body>
+<body><script>
+// Settings must work independently of Supabase loading.
+window.openSettings=function(){var d=document.getElementById('settingsDrawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
+window.closeSettings=function(){var d=document.getElementById('settingsDrawer');if(d){d.classList.add('hidden');d.setAttribute('aria-hidden','true');}};
+document.addEventListener('DOMContentLoaded',function(){
+  var b=document.getElementById('settingsBtn'), c=document.getElementById('closeSettings'), d=document.getElementById('settingsDrawer');
+  if(b)b.addEventListener('click',window.openSettings);
+  if(c)c.addEventListener('click',window.closeSettings);
+  if(d)d.addEventListener('click',function(e){if(e.target===d)window.closeSettings();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')window.closeSettings();});
+});
+</script>
+
 <div class="top">
   <div class="brand">AYALVASIKAL</div>
-  <a id="settingsBtn" class="gear" href="#settingsDrawer" role="button">⚙ Settings</a>
+  <button id="settingsBtn" class="gear" type="button" onclick="openSettings()">⚙ Settings</button>
 </div>
 
 <main class="wrap">
@@ -119,17 +131,16 @@ function toast(x){
 }
 
 function openSettings(){
-  $('settingsDrawer').classList.remove('hidden');
+  const d=$('settingsDrawer'); if(!d) return;
+  d.classList.remove('hidden');
   $('settingsDrawer').setAttribute('aria-hidden','false');
 }
 function closeSettings(){
-  $('settingsDrawer').classList.add('hidden');
+  const d=$('settingsDrawer'); if(!d) return;
+  d.classList.add('hidden');
   $('settingsDrawer').setAttribute('aria-hidden','true');
 }
-$('settingsBtn').addEventListener('click',openSettings);
-$('closeSettings').addEventListener('click',closeSettings);
-$('settingsDrawer').addEventListener('click',e=>{if(e.target===$('settingsDrawer'))closeSettings();});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSettings();});
+window.openSettings=openSettings; window.closeSettings=closeSettings;
 
 function showSetting(title,html){
   $('settingContent').innerHTML='<div class="settingTitle">'+title+'</div>'+html;
