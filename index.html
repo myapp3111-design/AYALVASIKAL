@@ -74,6 +74,11 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .userDashboard{display:none}
 .masterOnly{display:block}
 </style>
+
+<style>
+#userModeBtn,#masterModeBtn{transition:.15s ease;touch-action:manipulation;position:relative;z-index:20001}
+#userModeBtn.active,#masterModeBtn.active{background:#0f766e!important;color:#fff!important;border-color:#0f766e!important}
+</style>
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -259,6 +264,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="toast" class="toast hidden"></div>
 
 <script>
+const $=id=>document.getElementById(id);
 const URL='https://lfyejyjwyoovocsrolma.supabase.co';
 const KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G';
 const db=true; // REST connection: no external Supabase JS library required.
@@ -309,18 +315,20 @@ function clearAuthErrors(){
 }
 
 function showUserLogin(){
-  loginMode='user';
-  clearAuthErrors();
   $('userLoginPanel').style.display='block';
   $('masterLoginPanel').style.display='none';
-  $('authTitle').textContent='User Dashboard Login';
+  $('userModeBtn').classList.add('active');
+  $('masterModeBtn').classList.remove('active');
+  $('authTitle').textContent='User Login';
+  clearAuthErrors();
 }
 function showMasterLogin(){
-  loginMode='master';
-  clearAuthErrors();
   $('userLoginPanel').style.display='none';
   $('masterLoginPanel').style.display='block';
+  $('masterModeBtn').classList.add('active');
+  $('userModeBtn').classList.remove('active');
   $('authTitle').textContent='Master Admin Login';
+  clearAuthErrors();
 }
 
 function setLoggedIn(profile){
@@ -1299,5 +1307,17 @@ $('printBtn').addEventListener('click',()=>window.print());
   setLoggedOut();
 })();
 </script>
+
+document.addEventListener('DOMContentLoaded',function(){
+  const u=document.getElementById('userModeBtn');
+  const m=document.getElementById('masterModeBtn');
+  const ub=document.getElementById('userLoginBtn');
+  const mb=document.getElementById('masterLoginBtn');
+  if(u)u.onclick=showUserLogin;
+  if(m)m.onclick=showMasterLogin;
+  if(ub)ub.onclick=userLogin;
+  if(mb)mb.onclick=masterLogin;
+  showUserLogin();
+});
 </body>
 </html>
