@@ -65,15 +65,16 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media(max-width:560px){.authCard{padding:22px;border-radius:20px}.authBrand{font-size:24px}}
 </style>
 <style>
-/* Normal users get a dashboard-only view. Master Admin keeps the full application. */
+/* Normal users get dashboard only. Master Admin gets full controls. */
 .userMode #settingsBtn{display:none!important}
+.userMode #logoutBtn{display:inline-block!important}
 .userMode #search{display:none!important}
-.userMode .wrap > section:not(.totalGrid):not(#announcementPanel){display:none!important}
+.userMode #receiptCard{display:none!important}
+.userMode .wrap > section:not(.totalGrid):not(#announcementPanel):not(#userDashboard){display:none!important}
 .userMode .totalGrid{margin-top:8px}
 .userMode .userDashboard{display:block!important}
 .userDashboard{display:none}
-.masterOnly{display:block}
-</style>
+
 
 <style>
 #userModeBtn,#masterModeBtn{transition:.15s ease;touch-action:manipulation;position:relative;z-index:20001}
@@ -189,7 +190,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <div class="top">
   <div class="brand">AYALVASIKAL</div>
-  <button id="settingsBtn" class="gear" type="button" onclick="openSettings()">⚙ Settings</button>
+  <button id="settingsBtn" class="gear hidden" type="button" onclick="openSettings()">⚙ Settings</button>
   <button id="logoutBtn" class="gear logoutBtn" type="button">↪ Logout</button>
 </div>
 
@@ -333,25 +334,42 @@ function showMasterLogin(){
 
 function setLoggedIn(profile){
   currentUser=profile;
-  const isMaster=profile.role==='master_admin' || String(profile.username||'').toLowerCase()==='shafithuyyath';
 
-  sessionStorage.setItem('ayalvasikal_user',JSON.stringify({
-    id:profile.id,
-    username:profile.username,
-    code:profile.code,
-    role:profile.role
-  }));
-  sessionStorage.setItem('ayalvasikal_code',profile.code||'');
+  const isMaster=
+    profile.role==='master_admin' ||
+    String(profile.username||'').toLowerCase()==='shafithuyyath';
+
+  sessionStorage.setItem(
+    'ayalvasikal_user',
+    JSON.stringify({
+      id:profile.id,
+      username:profile.username,
+      code:profile.code,
+      role:profile.role
+    })
+  );
+
+  sessionStorage.setItem(
+    'ayalvasikal_code',
+    profile.code||''
+  );
 
   document.body.classList.toggle('userMode',!isMaster);
   document.body.classList.toggle('masterMode',isMaster);
 
   $('authGate').style.display='none';
   $('logoutBtn').style.display='inline-block';
-  $('sessionUser').textContent='Logged in as '+profile.name+' · '+(isMaster?'Master Admin':'User');
+
+  const settings=$('settingsBtn');
+  if(settings){
+    settings.classList.toggle('hidden',!isMaster);
+  }
+
+  $('sessionUser').textContent=
+    'Logged in as '+profile.name+
+    ' · '+(isMaster?'Master Admin':'User');
 
   if(!isMaster){
-    $('settingContent').innerHTML='';
     closeSettings();
   }
 }
@@ -391,11 +409,13 @@ async function loadProfileByCode(code){
   }
 }
 
-async function userLogin(){
+async async function userLogin(){
   clearAuthErrors();
+
   const code=$('loginCode').value.trim().toUpperCase();
 
-  if(!code)return showAuthError('Please enter your Code.','user');
+  if(!code)
+    return showAuthError('Please enter your Code.','user');
 
   const profile=await loadProfileByCode(code);
 
@@ -407,16 +427,48 @@ async function userLogin(){
   }
 
   if(profile.role==='master_admin'){
-    return showAuthError('Use Master Admin login.','user');
+    return showAuthError(
+      'Use Master Admin login.',
+      'user'
+    );
   }
 
   if((profile.status||'approved')!=='approved'){
-    return showAuthError('This user is not approved yet.','user');
+    return showAuthError(
+      'This user is not active yet.',
+      'user'
+    );
   }
 
-  // Normal users do not need password.
   setLoggedIn(profile);
+
   await load();
+
+  // Dashboard-only: normal users see only their own records.
+  data=data.filter(
+    x=>String(x.code||'').toUpperCase()===code
+  );
+
+  refresh();
+
+  const dash=$('userDashboard');
+  if(dash){
+    $('userDashName').textContent=profile.name;
+    $('userDashCode').textContent=code;
+
+    const rows=data.map(x=>`
+      <div class="row">
+        <div>
+          <b>${esc(x.month)}</b>
+          <div class="small">${esc(x.remarks||'')}</div>
+        </div>
+        <b>${money(x.amount)}</b>
+      </div>
+    `).join('');
+
+    $('userDashRows').innerHTML=
+      rows || '<div class="small" style="padding:12px 0">No payments saved yet.</div>';
+  }
 }
 
 async function masterLogin(){
@@ -752,84 +804,55 @@ function readPermissionChecks(prefix){
   const p={}; permissionDefs.forEach(([key])=>p[key]=!!$(`${prefix}_${key}`)?.checked); return p;
 }
 function userRow(u){
-  const roleLabel=u.role==='master_admin'?'👑 Master Admin':u.role==='admin'?'🛠️ Admin':'👤 User';
-  const status=(u.status||'approved');
-  const pending=status==='pending';
-  const statusHtml=pending
-    ? '<span class="small" style="color:#b54708;font-weight:800">⏳ Pending Approval</span>'
-    : '<span class="small" style="color:#1f7a4d;font-weight:800">✓ Approved</span>';
-
   if(u.role==='master_admin'){
-    return `<div class="row" style="align-items:flex-start">
-      <div style="min-width:0">
+    return `<div class="row" style="align-items:center">
+      <div>
         <b>${esc(u.name)}</b>
-        <div class="small">Code: ${esc(u.code||'C0000')} · ${roleLabel}</div>
-        ${statusHtml}
+        <div class="small">Code: ${esc(u.code||'C0000')}</div>
+        <div class="small" style="color:#1f7a4d;font-weight:800">👑 Master Admin</div>
       </div>
       <span class="small">Protected</span>
     </div>`;
   }
 
-  return `<div class="row" style="align-items:flex-start">
-    <div style="min-width:0">
+  return `<div class="row" style="align-items:center">
+    <div>
       <b>${esc(u.name)}</b>
-      <div class="small">Code: ${esc(u.code||'—')} · ${roleLabel}</div>
-      ${statusHtml}
+      <div class="small">Code: ${esc(u.code||'—')}</div>
+      <div class="small" style="color:#1f7a4d;font-weight:800">✓ User Active</div>
     </div>
     <div class="actions" style="margin-top:0">
-      ${pending ? `<button class="primary" type="button" onclick="approveUser(${Number(u.id)})">✓ Approve</button>` : ''}
-      <button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit</button>
+      <button class="secondary" type="button" onclick="editUserProfile(${Number(u.id)})">Edit Name</button>
+      <button class="secondary" type="button" onclick="deleteUserProfile(${Number(u.id)})">Delete</button>
     </div>
   </div>`;
 }
+
 function addUserProfileForm(){
   if(!currentUser || currentUser.role!=='master_admin')return;
 
-  const perms=defaultPermissions('user');
-
   $('userForm').innerHTML=`
-  <div class="card" style="margin:0">
-    <div class="grid">
-      <div class="field full">
-        <label>Select saved Name</label>
-        <select id="upMember">
-          <option value="">Loading names...</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>Code</label>
-        <input id="upCode" class="locked" readonly>
-      </div>
-
-      <div class="field">
-        <label>Role</label>
-        <select id="upRole">
-          <option value="user">User</option>
-          <option value="admin">Admin</option>
-        </select>
-      </div>
-
-      <div class="field full">
-        <label>Initial Password</label>
-        <input id="upPassword" type="password" minlength="8" placeholder="At least 8 characters">
-      </div>
+    <div class="field">
+      <label>Select saved Name</label>
+      <select id="upMember">
+        <option value="">Select saved name</option>
+      </select>
     </div>
 
-    <div class="notice" style="margin-top:10px">
-      <b>Permissions</b>
-      <div class="permGrid">${permissionChecks('up',perms)}</div>
-    </div>
-
-    <div class="small" style="margin-top:8px">
-      Name and Code come from Master → Name & Code. Code cannot be changed.
+    <div class="field" style="margin-top:10px">
+      <label>Code</label>
+      <input id="upCode" class="locked" readonly placeholder="Automatic Code">
     </div>
 
     <div class="actions">
-      <button class="primary" type="button" onclick="saveUserProfile()">💾 Save User</button>
+      <button class="primary" type="button" onclick="saveUserProfile()">✓ Create User</button>
       <button class="secondary" type="button" onclick="$('userForm').innerHTML=''">Cancel</button>
     </div>
-  </div>`;
+
+    <div class="notice">
+      User login is <b>Code only</b>.<br>
+      No username, password, role or permission is required.
+    </div>`;
 
   loadAdminMemberOptions();
 }
@@ -868,163 +891,134 @@ async function loadAdminMemberOptions(){
 
 async function saveUserProfile(){
   if(!currentUser || currentUser.role!=='master_admin')
-    return toast('Only Master Admin can add users.');
+    return toast('Only Master Admin can create users.');
 
-  const memberSelect=$('upMember');
-  const option=memberSelect?.options[memberSelect.selectedIndex];
+  const select=$('upMember');
+  const option=select?.options[select.selectedIndex];
 
   const name=option?.dataset?.name || '';
-  const code=$('upCode').value.trim().toUpperCase();
-  const password=$('upPassword').value;
-  const role=$('upRole').value;
-  const permissions=readPermissionChecks('up');
+  const code=$('upCode')?.value.trim().toUpperCase() || '';
 
   if(!name || !code)
-    return toast('Select a saved Name & Code');
+    return toast('Select a saved name.');
 
-  if(password.length<8)
-    return toast('Password must be at least 8 characters');
+  const profiles=(await apiSelect('user_profiles','id')).data||[];
 
-  const r=await fetch(
-    URL+'/functions/v1/register-user',
-    {
-      method:'POST',
-      headers:{
-        'apikey':KEY,
-        'Content-Type':'application/json'
-      },
-      body:JSON.stringify({
-        name:name,
-        code:code,
-        password:password
-      })
+  if(profiles.some(
+    u=>String(u.code||'').toUpperCase()===code
+  )){
+    return toast('This Code is already active.');
+  }
+
+  const r=await apiInsert('user_profiles',{
+    username:code.toLowerCase(),
+    name:name,
+    code:code,
+    role:'user',
+    status:'approved',
+    permissions:{
+      view_all:false,
+      add_name:false,
+      edit_name:false,
+      delete_name:false,
+      add_payment:true,
+      edit_payment:false,
+      delete_payment:false,
+      reports:true,
+      user_permissions:false,
+      banner:false
     }
-  );
+  });
 
-  const result=await r.json().catch(()=>({}));
-
-  if(!r.ok)
-    return toast(result.error || result.details || 'User creation failed');
-
-  // Master Admin can immediately set role and permissions.
-  const created=await apiSelect(
-    'user_profiles',
-    'id'
-  );
-
-  const profile=(created.data||[]).find(
-    x=>String(x.code||'').toUpperCase()===code
-  );
-
-  if(profile){
-    const update=await apiUpdate(
-      'user_profiles',
-      {
-        role:role,
-        permissions:permissions,
-        status:'approved'
-      },
-      'id',
-      profile.id
-    );
-
-    if(update.error)
-      return toast('User created, but permission update failed');
+  if(r.error){
+    console.error(r.error);
+    return toast(r.error.message || 'Could not create user');
   }
 
   await loadUserProfiles();
   await renderUserPermissions();
-  toast('✓ User created');
+  toast('✓ User created: '+code);
 }
 
 async function editUserProfile(id){
+  if(!currentUser || currentUser.role!=='master_admin')return;
+
   const u=userProfiles.find(x=>String(x.id)===String(id));
-  if(!u || u.role==='master_admin') return;
+  if(!u || u.role==='master_admin')return;
 
-  const role=u.role==='admin'?'admin':'user';
-  const perms=u.permissions || defaultPermissions(role);
+  const m=members.find(x=>String(x.code||'').toUpperCase()===String(u.code||'').toUpperCase());
+  if(!m)return toast('Saved member not found');
 
-  showSetting('Edit User',`
-    <div class="grid">
-      <div class="field full">
-        <label>Name</label>
-        <input id="euName" value="${esc(u.name)}">
-      </div>
-      <div class="field">
-        <label>Code</label>
-        <input id="euCode" class="locked" value="${esc(u.code||'')}" readonly>
-      </div>
-      <div class="field">
-        <label>Role</label>
-        <select id="euRole">
-          <option value="user" ${role==='user'?'selected':''}>User</option>
-          <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
-        </select>
-      </div>
-    </div>
+  const newName=prompt(
+    'Edit display name. Code cannot be changed.',
+    u.name
+  );
 
-    <div class="notice" style="margin-top:10px">
-      <b>Permissions</b>
-      <div class="permGrid">${permissionChecks('eu',perms)}</div>
-    </div>
+  if(newName===null)return;
 
-    <div class="small" style="margin-top:8px">
-      Code is permanent and cannot be changed. Password is not shown here.
-    </div>
-
-    <div class="actions">
-      <button class="primary" type="button" onclick="updateUserProfile(${Number(u.id)})">Save Changes</button>
-      <button class="secondary" type="button" onclick="renderUserPermissions()">Cancel</button>
-    </div>`);
-}
-async function updateUserProfile(id){
-  const u=userProfiles.find(x=>String(x.id)===String(id));
-  if(!u) return;
-
-  const name=$('euName').value.trim();
-  const role=$('euRole').value;
-
-  if(!name) return toast('Name required');
+  const name=newName.trim();
+  if(!name)return toast('Name required');
 
   const r=await apiUpdate(
     'user_profiles',
-    {
-      name:name,
-      role:role,
-      permissions:readPermissionChecks('eu')
-    },
+    {name},
     'id',
     id
   );
 
-  if(r.error){
-    console.error(r.error);
-    return toast('Update failed');
-  }
-
-  // Keep the saved Master Name & Code record synchronized for display.
-  if(u.code){
-    await apiUpdate('members',{name:name},'code',u.code);
-  }
+  if(r.error)return toast('Update failed');
 
   await loadUserProfiles();
-  await loadMembers();
   await renderUserPermissions();
   toast('✓ User updated');
 }
+
 async function deleteUserProfile(id){
-  const u=userProfiles.find(x=>String(x.id)===String(id)); if(!u||u.role==='master_admin')return;
-  if(!confirm(`Delete user ${u.name}?`))return;
+  if(!currentUser || currentUser.role!=='master_admin')return;
+
+  const u=userProfiles.find(x=>String(x.id)===String(id));
+  if(!u || u.role==='master_admin')return;
+
+  if(!confirm(`Remove user access for ${u.name} (${u.code})?`))return;
+
   const r=await apiDelete('user_profiles','id',id);
+
   if(r.error)return toast('Delete failed');
-  await loadUserProfiles(); await renderUserPermissions(); toast('✓ User deleted');
-}
-async function renderUserPermissions(){
-  if(!currentUser || (currentUser.role!=='master_admin' && !(currentUser.permissions||{}).user_permissions)) return toast('You do not have permission to manage users');
+
   await loadUserProfiles();
-  const rows=userProfiles.map(userRow).join('');
-  showSetting('User Permissions',`<div class="notice"><b>Master Admin</b><br><b>shafithuyyath</b> has full control and is protected from editing/deletion.</div><div class="actions"><button class="primary" type="button" onclick="addUserProfileForm()">＋ Add User / Admin</button></div><div id="userForm" style="margin-top:10px"></div><div style="margin-top:10px">${rows||'<div class="small">No users yet.</div>'}</div>`);
+  await renderUserPermissions();
+  toast('✓ User access removed');
 }
+
+async function renderUserPermissions(){
+  if(!currentUser || currentUser.role!=='master_admin')
+    return toast('Only Master Admin can manage users');
+
+  await loadUserProfiles();
+
+  const rows=userProfiles.map(userRow).join('');
+
+  showSetting('User Access',`
+    <div class="notice">
+      <b>Code-only access</b><br>
+      Select a saved name and create its user access.
+      The user then opens the dashboard using the Code only.
+    </div>
+
+    <div class="actions">
+      <button class="primary" type="button" onclick="addUserProfileForm()">
+        ＋ Create User
+      </button>
+    </div>
+
+    <div id="userForm" style="margin-top:10px"></div>
+
+    <div style="margin-top:10px">
+      ${rows||'<div class="small">No users created yet.</div>'}
+    </div>
+  `);
+}
+
 function reportMonths(){
   const set=new Set();
   data.forEach(x=>{if(x.month)set.add(x.month)});
