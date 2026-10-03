@@ -109,6 +109,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .masterPersonResult{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
 .masterPersonResult button{flex:0 0 auto}
 </style>
+
+<style>
+body.masterMode #masterSearch,
+body.masterMode #paymentEntry,
+body.masterMode #settingsBtn,
+body.masterMode #logoutBtn{display:block!important}
+body.masterMode #userDashboard{display:none!important}
+</style>
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -129,8 +137,8 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="authSub" id="authTitle">Login</div>
 
     <div class="authActions" style="flex-direction:row;margin-bottom:14px">
-      <button class="secondary" type="button" id="userModeBtn" style="flex:1">👤 User</button>
-      <button class="secondary" type="button" id="masterModeBtn" style="flex:1">👑 Master Admin</button>
+      <button class="secondary" type="button" id="userModeBtn" style="flex:1" onclick="showUserLogin()">👤 User</button>
+      <button class="secondary" type="button" id="masterModeBtn" style="flex:1" onclick="showMasterLogin()">👑 Master Admin</button>
     </div>
 
     <div id="userLoginPanel">
@@ -159,7 +167,7 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
       <div id="masterAuthError" class="authError"></div>
       <div class="authActions">
-        <button class="primary" type="button" id="masterLoginBtn">🔐 Master Login</button>
+        <button class="primary" type="button" id="masterLoginBtn" onclick="masterLogin()">🔐 Master Login</button>
       </div>
       <div class="authInfo">
         Master Admin username remains <b>shafithuyyath</b>.<br>
@@ -528,50 +536,72 @@ async function userLogin(){
 async function masterLogin(){
   clearAuthErrors();
 
-  const username=$('masterUsername').value.trim().toLowerCase();
-  const password=$('masterPassword').value;
+  const username=String($('masterUsername')?.value||'').trim().toLowerCase();
+  const password=String($('masterPassword')?.value||'');
 
   if(username!=='shafithuyyath'){
-    return showAuthError(
-      'Master Admin username must be shafithuyyath.',
-      'master'
-    );
+    return showAuthError('Master Admin username must be shafithuyyath.','master');
   }
-
   if(!password){
     return showAuthError('Enter the Master Admin password.','master');
   }
 
-  const profile=await loadCurrentProfile('shafithuyyath');
+  // The Master Auth account already exists with this email.
+  // Keep this separate from normal Code-only users.
+  const masterAuthProfile={
+    username:'shafithuyyath',
+    email:'myapp3111@gmail.com',
+    name:'Master Admin',
+    role:'master_admin',
+    status:'approved',
+    permissions:{
+      view_all:true,
+      add_name:true,
+      edit_name:true,
+      delete_name:true,
+      add_payment:true,
+      edit_payment:true,
+      delete_payment:true,
+      reports:true,
+      user_permissions:true,
+      banner:true
+    }
+  };
 
-  if(!profile){
-    return showAuthError(
-      'Master Admin profile was not found.',
-      'master'
-    );
-  }
+  const dbProfile=await loadCurrentProfile('shafithuyyath');
+  const profile=dbProfile ? {
+    ...masterAuthProfile,
+    ...dbProfile,
+    username:'shafithuyyath',
+    role:'master_admin',
+    status:'approved',
+    email:dbProfile.email||'myapp3111@gmail.com',
+    permissions:dbProfile.permissions||masterAuthProfile.permissions
+  } : masterAuthProfile;
 
-  if((profile.status||'approved')!=='approved'){
-    return showAuthError(
-      'Master Admin account is not approved.',
-      'master'
-    );
-  }
-
-  const r=await authSignIn(username,password,profile);
+  const r=await authSignIn('shafithuyyath',password,profile);
 
   if(r.error){
-    return showAuthError(authMessage(r.error),'master');
+    return showAuthError(
+      /invalid login credentials/i.test(authMessage(r.error))
+        ? 'Incorrect Master Admin password.'
+        : authMessage(r.error),
+      'master'
+    );
   }
 
-  sessionStorage.setItem(
-    'ayalvasikal_access_token',
-    r.data?.access_token||''
-  );
-
+  sessionStorage.setItem('ayalvasikal_access_token',r.data?.access_token||'');
   setLoggedIn(profile);
+
+  // Load all existing data for Master Admin.
   await load();
   await loadBanner();
+
+  // Explicitly keep Master controls visible.
+  document.body.classList.remove('userMode');
+  document.body.classList.add('masterMode');
+  $('settingsBtn').classList.remove('hidden');
+  $('logoutBtn').style.display='inline-block';
 }
 
 function bindAuthButtons(){
