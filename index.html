@@ -117,6 +117,31 @@ body.masterMode #settingsBtn,
 body.masterMode #logoutBtn{display:block!important}
 body.masterMode #userDashboard{display:none!important}
 </style>
+
+<style>
+body.masterMode #masterSearch,
+body.masterMode #paymentEntry{
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+}
+body.masterMode #masterPersonSearch,
+body.masterMode #ea,
+body.masterMode #em,
+body.masterMode #er{
+  pointer-events:auto!important;
+}
+</style>
+
+<style>
+#masterPersonResults{min-height:28px}
+.masterPersonResult{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px;padding:12px;border:1px solid var(--line);
+  border-radius:12px;background:#fff;margin-top:8px
+}
+#paymentEntry input[readonly]{background:#f3f7f7;color:#123;font-weight:700}
+</style>
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -273,8 +298,8 @@ document.addEventListener('DOMContentLoaded',function(){
     <input id="masterPersonSearch" type="text" placeholder="Enter Code or Name" autocomplete="off">
   </div>
   <div class="actions">
-    <button class="primary" type="button" id="masterPersonSearchBtn">🔎 Search</button>
-    <button class="secondary" type="button" id="masterPersonClearBtn">Clear</button>
+    <button class="primary" type="button" id="masterPersonSearchBtn" onclick="runMasterPersonSearch()">🔎 Search</button>
+    <button class="secondary" type="button" id="masterPersonClearBtn" onclick="clearMasterSearch()">Clear</button>
   </div>
   <div id="masterPersonResults"></div>
 
@@ -320,8 +345,8 @@ document.addEventListener('DOMContentLoaded',function(){
     </div>
   </div>
   <div class="actions">
-    <button class="primary" id="saveBtn" type="button">💾 Save Payment</button>
-    <button class="secondary" id="clearBtn" type="button">Clear</button>
+    <button class="primary" id="saveBtn" type="button" onclick="save()">💾 Save Payment</button>
+    <button class="secondary" id="clearBtn" type="button" onclick="clearEntry()">Clear</button>
   </div>
 </section>
 
@@ -1407,11 +1432,41 @@ function pickMonth(m){months.has(m)?months.delete(m):months.add(m);buildMonths()
 
 function personMatches(q){
   q=String(q||'').trim().toLowerCase();
-  if(!q)return [];
-  return members.filter(m=>{
-    const code=String(m.code||'').toLowerCase();
-    const name=String(m.name||'').toLowerCase();
-    return code.includes(q)||name.includes(q);
+
+  // Build one reliable people list from members + existing entries.
+  // This keeps Search working even if the members table has not refreshed yet.
+  const map=new Map();
+
+  for(const m of (members||[])){
+    if(m && m.code && m.name){
+      map.set(String(m.code).toUpperCase(),{
+        code:String(m.code).toUpperCase(),
+        name:String(m.name),
+        mobile:m.mobile||''
+      });
+    }
+  }
+
+  for(const x of (data||[])){
+    if(x && x.code && x.name){
+      const key=String(x.code).toUpperCase();
+      if(!map.has(key)){
+        map.set(key,{
+          code:key,
+          name:String(x.name),
+          mobile:''
+        });
+      }
+    }
+  }
+
+  const all=[...map.values()];
+  if(!q)return all.slice(0,50);
+
+  return all.filter(m=>{
+    const code=m.code.toLowerCase();
+    const name=m.name.toLowerCase();
+    return code===q || name===q || code.includes(q) || name.includes(q);
   }).slice(0,20);
 }
 
@@ -1421,13 +1476,30 @@ function renderMasterSearchResults(q){
 
   const query=String(q||'').trim();
   if(!query){
-    box.innerHTML='<div class="small" style="padding:12px 0">Search by Code or Name.</div>';
+    box.innerHTML='<div class="small" style="padding:12px 0">Type Code or Name, then press Search.</div>';
     return;
   }
 
   const matches=personMatches(query);
+
   if(!matches.length){
     box.innerHTML='<div class="small" style="padding:12px 0">No matching saved person.</div>';
+    return;
+  }
+
+  // Exact Code/Name = select immediately.
+  const exact=matches.find(m=>
+    m.code.toLowerCase()===query.toLowerCase() ||
+    m.name.toLowerCase()===query.toLowerCase()
+  );
+
+  if(exact){
+    selectMasterPerson(exact.code);
+    box.innerHTML=`
+      <div class="masterPersonResult">
+        <div><b>${esc(exact.name)}</b><div class="small">${esc(exact.code)}</div></div>
+        <span class="small" style="color:#1f7a4d;font-weight:800">✓ Selected</span>
+      </div>`;
     return;
   }
 
@@ -1470,6 +1542,73 @@ function selectMasterPerson(code){
 function searchRows(){
   renderMasterSearchResults($('masterPersonSearch')?.value||'');
 }
+
+async function save(){
+  if(!currentUser || currentUser.role!=='master_admin'){
+    return toast('Only Master Admin can save payments.');
+  }
+
+  const code=String($('ec')?.value||'').trim().toUpperCase();
+  const name=String($('enName')?.value||'').trim();
+  const amount=Number($('ea')?.value||0);
+  const month=String($('em')?.value||'').trim();
+  const remarks=String($('er')?.value||'').trim();
+
+  if(!code || !name){
+    return toast('First search and select a person.');
+  }
+  if(!amount || amount<=0){
+    return toast('Enter a valid amount.');
+  }
+  if(!month){
+    return toast('Select Month + Year.');
+  }
+
+  // One payment per person per month.
+  const duplicate=data.find(x=>
+    String(x.code||'').toUpperCase()===code &&
+    String(x.month||'')===month
+  );
+  if(duplicate){
+    return toast(`${name} already has a payment for ${month}.`);
+  }
+
+  const row={
+    code,
+    name,
+    amount:Number(amount.toFixed(2)),
+    month,
+    remarks:remarks||null
+  };
+
+  const r=await apiInsert('entries',row);
+  if(r.error){
+    console.error(r.error);
+    return toast(r.error.message||r.error.details||'Could not save payment.');
+  }
+
+  const saved=r.data?.[0]||{
+    ...row,
+    created_at:new Date().toISOString()
+  };
+
+  data.push(saved);
+  last={
+    ...saved,
+    date:new Date(saved.created_at||Date.now()).toLocaleDateString()
+  };
+
+  refresh();
+  receipt();
+  toast('✓ Payment saved');
+
+  // Keep the selected person and entry fields so another month can be entered
+  // without having to search the person again.
+  $('ea').value='';
+  $('em').value='';
+  $('er').value='';
+}
+
 $('saveBtn').addEventListener('click',save);
 
 function clearEntry(){
@@ -1497,10 +1636,52 @@ function share(){
  let r=last,t=`AYALVASIKAL\nPayment Receipt\n\nName: ${r.name}\nCode: ${r.code}\nMonth: ${r.month}\nDate: ${r.date}\nAmount: ${money(r.amount)}\nRemarks: ${r.remarks||'-'}`;
  location.href='https://wa.me/?text='+encodeURIComponent(t);
 }
+
+function clearMasterSearch(){
+  const q=$('masterPersonSearch');
+  if(q)q.value='';
+  $('masterPersonResults').innerHTML='<div class="small" style="padding:12px 0">Search by Code or Name.</div>';
+  $('masterPersonSummary').classList.add('hidden');
+  $('ec').value='';
+  $('enName').value='';
+}
+
+function runMasterPersonSearch(){
+  const q=String($('masterPersonSearch')?.value||'').trim();
+  if(!q){
+    return toast('Enter Code or Name to search.');
+  }
+
+  // Refresh member list before searching, but do not block the search
+  // if the members endpoint has a temporary issue.
+  renderMasterSearchResults(q);
+
+  apiSelect('members').then(r=>{
+    if(!r.error && Array.isArray(r.data)){
+      members=r.data;
+    }
+    renderMasterSearchResults(q);
+  }).catch(()=>{});
+}
+
 $('shareBtn').addEventListener('click',share);
 
 document.addEventListener('DOMContentLoaded',function(){
   const u=$('userModeBtn'),m=$('masterModeBtn'),ub=$('userLoginBtn'),mb=$('masterLoginBtn');
+  const ps=$('masterPersonSearch'), psb=$('masterPersonSearchBtn'), pcb=$('masterPersonClearBtn');
+  if(psb)psb.onclick=runMasterPersonSearch;
+  if(pcb)pcb.onclick=clearMasterSearch;
+  if(ps){
+    ps.addEventListener('keydown',e=>{if(e.key==='Enter')runMasterPersonSearch();});
+    ps.addEventListener('input',()=>{
+      const q=String(ps.value||'').trim();
+      if(q.length>=2) renderMasterSearchResults(q);
+      else if($('masterPersonResults')) $('masterPersonResults').innerHTML='<div class="small" style="padding:12px 0">Type Code or Name.</div>';
+    });
+  }
+  const sb=$('saveBtn'), cb=$('clearBtn');
+  if(sb)sb.onclick=save;
+  if(cb)cb.onclick=clearEntry;
   if(u)u.onclick=showUserLogin;
   if(m)m.onclick=showMasterLogin;
   if(ub)ub.onclick=userLogin;
