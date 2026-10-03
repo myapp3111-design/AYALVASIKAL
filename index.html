@@ -74,11 +74,24 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .userMode .totalGrid{margin-top:8px}
 .userMode .userDashboard{display:block!important}
 .userDashboard{display:none}
-
-
+</style>
 <style>
 #userModeBtn,#masterModeBtn{transition:.15s ease;touch-action:manipulation;position:relative;z-index:20001}
 #userModeBtn.active,#masterModeBtn.active{background:#0f766e!important;color:#fff!important;border-color:#0f766e!important}
+</style>
+
+<style>
+.dashboardBanner{display:block;width:100%;max-height:300px;object-fit:cover;border-radius:18px;box-shadow:0 12px 30px #0f172a12}
+#announcementPanel{padding:10px}
+.masterOnly{display:block}
+.userMode #paymentEntry{display:none!important}
+.userMode #announcementPanel{display:block!important}
+.userMode .totalGrid{display:grid!important}
+.userMode #userDashboard{display:none!important}
+.userMode #paymentEntry{display:none!important}
+.entryCodeHint{font-size:12px;color:var(--muted);margin-top:5px}
+.bannerPreview{width:100%;max-height:260px;object-fit:cover;border-radius:15px;border:1px solid var(--line);margin-top:10px}
+@media(max-width:650px){.dashboardBanner{max-height:220px}}
 </style>
 </head>
 <body><script>
@@ -196,16 +209,16 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <main class="wrap">
 <section id="announcementPanel" class="card hidden">
-<img id="announcementImage" alt="Announcement" style="display:block;width:100%;max-height:260px;object-fit:cover;border-radius:15px">
+<img id="announcementImage" class="dashboardBanner" alt="Announcement">
 </section>
 
 <div class="totalGrid">
 <section class="total">
-<div class="label">Total Collection</div>
+<div class="label">Total Collection Amount</div>
 <div class="value" id="total">QAR 0.00</div>
 </section>
 <section class="total monthly">
-<div class="label">Monthly Collection <span id="monthlyLabel"></span></div>
+<div class="label">This Month Amount <span id="monthlyLabel"></span></div>
 <div class="value" id="monthlyTotal">QAR 0.00</div>
 </section>
 </div>
@@ -234,20 +247,21 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="results"></div>
 </section>
 
-<section class="card">
+<section id="paymentEntry" class="card">
+<div class="settingTitle" style="margin-top:0">Payment Entry</div>
 <div class="grid">
-<div class="field"><label>Saved Name</label><select id="en"><option value="">Select name</option></select></div>
-<div class="field"><label>Code</label><input id="ec" readonly></div>
-<div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01"></div>
+<div class="field"><label>Code Search</label><input id="entryCodeSearch" type="text" placeholder="Search Code e.g. C0001" autocomplete="off" list="entryCodeList"><datalist id="entryCodeList"></datalist></div>
+<div class="field"><label>Name</label><input id="entryName" readonly placeholder="Name appears automatically"></div>
+<div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01" placeholder="0.00"></div>
 <div class="field"><label>Month + Year</label><input id="em" type="month"></div>
-<div class="field full"><label>Remarks</label><textarea id="er" rows="2"></textarea></div>
+<div class="field full"><label>Remarks</label><textarea id="er" rows="2" placeholder="Optional remarks"></textarea></div>
 </div>
-<div class="actions"><button class="primary" id="saveBtn">💾 Save Payment</button><button class="secondary" id="clearBtn">Clear</button></div>
+<div class="actions"><button class="primary" id="saveBtn">💾 Save</button><button class="secondary" id="clearBtn">Clear</button></div>
 </section>
 
-<section id="receiptCard" class="card hidden">
+<section id="receiptCard"section id="receiptCard" class="card hidden">
 <div id="receipt" class="receipt"></div>
-<div class="actions"><button class="primary" id="shareBtn">📱 Share Receipt to WhatsApp</button><button class="secondary" id="printBtn">🖨 Print</button></div>
+<div class="actions"><button class="primary" id="shareBtn">📱 Share Receipt to WhatsApp</button></div>
 </section>
 </main>
 
@@ -258,6 +272,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <button class="menu" type="button" id="namesBtn">👥 Name & Code</button>
 <button class="menu" type="button" id="reportsBtn">📊 Reports</button>
 <button class="menu" type="button" id="permissionsBtn">👑 User Permissions</button>
+<button class="menu" type="button" id="bannerBtn">🖼 Photo / Banner</button>
 <div id="settingContent"></div>
 </div>
 </div>
@@ -618,6 +633,88 @@ $('namesBtn').addEventListener('click', async ()=>{
 $('permissionsBtn').addEventListener('click', async ()=>{
   await renderUserPermissions();
 });
+$('bannerBtn').addEventListener('click', async ()=>{
+  await renderBannerSettings();
+});
+
+const BANNER_BUCKET='ayalvasikal-banner';
+const BANNER_PATH='banner.jpg';
+function bannerPublicUrl(){
+  return `${URL}/storage/v1/object/public/${BANNER_BUCKET}/${BANNER_PATH}`;
+}
+async function loadBanner(){
+  const panel=$('announcementPanel'), img=$('announcementImage');
+  if(!panel||!img)return;
+  const url=bannerPublicUrl()+'?v='+Date.now();
+  img.onload=()=>{panel.classList.remove('hidden');};
+  img.onerror=()=>{panel.classList.add('hidden');};
+  img.src=url;
+}
+async function renderBannerSettings(){
+  if(!currentUser || currentUser.role!=='master_admin')return toast('Only Master Admin can manage the photo');
+  showSetting('Photo / Banner',`
+    <div class="notice"><b>Dashboard Photo</b><br>Upload one photo here. It will appear at the top of the Master and User dashboards.</div>
+    <input id="bannerFile" type="file" accept="image/*" style="margin-top:12px;width:100%">
+    <div id="bannerPreviewBox"></div>
+    <div class="actions">
+      <button class="primary" type="button" id="uploadBannerBtn">⬆ Upload Photo</button>
+      <button class="secondary" type="button" id="deleteBannerBtn">🗑 Delete Photo</button>
+    </div>
+    <div class="small" style="margin-top:8px">If no photo is uploaded, this area stays hidden.</div>
+  `);
+  const preview=$('bannerPreviewBox');
+  const current=bannerPublicUrl()+'?v='+Date.now();
+  const im=new Image();
+  im.className='bannerPreview';
+  im.onload=()=>{preview.innerHTML='';preview.appendChild(im);};
+  im.onerror=()=>{preview.innerHTML='<div class="small" style="margin-top:10px">No photo uploaded.</div>';};
+  im.src=current;
+  $('uploadBannerBtn').addEventListener('click',uploadBanner);
+  $('deleteBannerBtn').addEventListener('click',deleteBanner);
+}
+async function compressBanner(file){
+  if(!file)return null;
+  const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=URL.createObjectURL(file);});
+  const max=1600;
+  const scale=Math.min(1,max/Math.max(img.width,img.height));
+  const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
+  const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
+  return await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',0.84));
+}
+async function uploadBanner(){
+  const file=$('bannerFile')?.files?.[0];
+  if(!file)return toast('Select a photo first');
+  const blob=await compressBanner(file);
+  const token=sessionStorage.getItem('ayalvasikal_access_token')||KEY;
+  try{
+    const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}/${BANNER_PATH}`,{
+      method:'POST',
+      headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'image/jpeg','x-upsert':'true'},
+      body:blob
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)return toast(j.message||j.error||'Photo upload failed. Check Storage setup.');
+    await loadBanner();
+    await renderBannerSettings();
+    toast('✓ Photo uploaded');
+  }catch(e){console.error(e);toast('Photo upload failed');}
+}
+async function deleteBanner(){
+  if(!confirm('Delete the dashboard photo?'))return;
+  const token=sessionStorage.getItem('ayalvasikal_access_token')||KEY;
+  try{
+    const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}`,{
+      method:'DELETE',
+      headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({prefixes:[BANNER_PATH]})
+    });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok)return toast(j.message||j.error||'Photo delete failed. Check Storage setup.');
+    $('announcementPanel').classList.add('hidden');
+    await renderBannerSettings();
+    toast('✓ Photo deleted');
+  }catch(e){console.error(e);toast('Photo delete failed');}
+}
 
 async function loadMembers(){
   if(!db) return;
@@ -1059,15 +1156,15 @@ function buildMonthlyReport(from,to,status='all'){
       const p=reportPayment(m.code,month);
       return `<div style="white-space:nowrap">${esc(reportMonthLabel(month))}: ${p?statusMark(p)+' '+money(p.amount):statusMark(null)}</div>`;
     }).join('');
-    return `<tr><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${esc(m.mobile||'—')}</td><td>${detail}</td><td>${isGiven?money(payments.reduce((s,p)=>s+Number(p.amount||0),0)):'—'}</td></tr>`;
+    return `<tr><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${detail}</td><td>${isGiven?money(payments.reduce((s,p)=>s+Number(p.amount||0),0)):'—'}</td></tr>`;
   }).join('');
   const rangeLabel=range.length===1?reportMonthLabel(range[0]):`${reportMonthLabel(range[0])} → ${reportMonthLabel(range[range.length-1])}`;
   $('monthlyReportBox').innerHTML=`
     <div class="reportSummary"><b>${esc(rangeLabel)}</b><br>
     ✓ Given: <b>${given}</b> · ✕ Not Given: <b>${notGiven}</b> · Total: <b>${money(total)}</b></div>
     <div style="overflow:auto;margin-top:10px"><table class="reportTable">
-    <thead><tr><th>Code</th><th>Name</th><th>Mobile</th><th>Monthly Status</th><th>Total Amount</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan="5">No matching members.</td></tr>'}</tbody></table></div>
+    <thead><tr><th>Code</th><th>Name</th><th>Monthly Status</th><th>Total Amount</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan="4">No matching members.</td></tr>'}</tbody></table></div>
     <div class="actions" style="margin-top:12px"><button class="primary" type="button" id="shareMonthlyReport">📱 Share Report to WhatsApp</button></div>`;
   $('shareMonthlyReport').addEventListener('click',()=>shareMonthlyReport(from,to,status));
 }
@@ -1084,8 +1181,8 @@ function shareMonthlyReport(from,to,status){
   const rangeLabel=range.length===1?reportMonthLabel(range[0]):`${reportMonthLabel(range[0])} → ${reportMonthLabel(range[range.length-1])}`;
   let t=`AYALVASIKAL\nMonthly Report - ${rangeLabel}\n\n✓ Given: ${given}\n✕ Not Given: ${notGiven}\nTotal Collection: ${money(total)}\n\n`;
   t+=filtered.map(m=>{
-    const details=range.map(month=>{const p=reportPayment(m.code,month);return `${p?'✓':'✕'} ${reportMonthLabel(month)}${p?' - '+money(p.amount):''}`}).join(' | ');
-    return `${m.name} (${m.code})${m.mobile?' - '+m.mobile:''}\n${details}`;
+    const details=range.map(month=>{const p=reportPayment(m.code,month);return `${p?'🟢 ✓':'🔴 ✕'} ${reportMonthLabel(month)}${p?' - '+money(p.amount):''}`}).join(' | ');
+    return `${m.name} (${m.code})\n${details}`;
   }).join('\n\n');
   location.href='https://wa.me/?text='+encodeURIComponent(t);
 }
@@ -1099,7 +1196,7 @@ function buildPersonReport(code,status='all'){
     return `<tr><td>${esc(reportMonthLabel(month))}</td><td>${statusMark(p)}</td><td>${p?money(p.amount):'—'}</td><td>${p?esc(p.remarks||'—'):'—'}</td></tr>`;
   }).join('');
   const total=data.filter(x=>x.code===code).reduce((a,x)=>a+Number(x.amount||0),0);
-  $('personReportBox').innerHTML=`<div class="notice"><b>${esc(m.name)}</b> · ${esc(m.code)} · ${esc(m.mobile||'—')}<br>Total: <b>${money(total)}</b></div>
+  $('personReportBox').innerHTML=`<div class="notice"><b>${esc(m.name)}</b> · ${esc(m.code)}<br>Total: <b>${money(total)}</b></div>
   <div style="overflow:auto;margin-top:10px"><table class="reportTable"><thead><tr><th>Month</th><th>Status</th><th>Amount</th><th>Remarks</th></tr></thead><tbody>${rows||'<tr><td colspan="4">No matching months.</td></tr>'}</tbody></table></div>
   <div class="actions" style="margin-top:12px"><button class="primary" type="button" id="sharePersonReport">📱 Share Report to WhatsApp</button></div>`;
   $('sharePersonReport').addEventListener('click',()=>sharePersonReport(code,status));
@@ -1110,10 +1207,10 @@ function sharePersonReport(code,status){
     const p=reportPayment(code,month);
     return status==='given'?!!p:status==='not'?!p:true;
   });
-  let t=`AYALVASIKAL\nPerson Report\n\nName: ${m.name}\nCode: ${m.code}\nMobile: ${m.mobile||'-'}\n\n`;
+  let t=`AYALVASIKAL\nPerson Report\n\nName: ${m.name}\nCode: ${m.code}\n\n`;
   t+=rows.map(month=>{
     const p=reportPayment(code,month);
-    return `${p?'✓':'✕'} ${reportMonthLabel(month)}${p?' - '+money(p.amount):''}${p&&p.remarks?' - '+p.remarks:''}`;
+    return `${p?'🟢 ✓':'🔴 ✕'} ${reportMonthLabel(month)}${p?' - '+money(p.amount):''}${p&&p.remarks?' - '+p.remarks:''}`;
   }).join('\n');
   location.href='https://wa.me/?text='+encodeURIComponent(t);
 }
@@ -1236,19 +1333,29 @@ $('sn').addEventListener('change',()=>{
 });
 
 
-async function save(){if(!db)return toast('Database connection unavailable');
- let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();
- if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');
- if(!members.some(m=>m.code===code && m.name===name))return toast('Select a saved Name & Code');
- if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
- let r0=await apiInsert('entries',{code,name,amount,month,remarks}); let r={data:r0.data?.[0],error:r0.error};
- if(r.error)return toast('Save failed');
- data.push(r.data);last={...r.data,date:new Date().toLocaleDateString('en-GB')};
- refresh();receipt();clearEntry();toast('✓ Payment saved');
+async function save(){
+  if(!db)return toast('Database connection unavailable');
+  const code=$('entryCodeSearch').value.trim().toUpperCase();
+  const name=$('entryName').value.trim();
+  const amount=Number($('ea').value);
+  const month=$('em').value;
+  const remarks=$('er').value.trim();
+  if(!code||!name||!amount||!month)return toast('Complete Code, Amount and Month');
+  if(!members.some(m=>String(m.code).toUpperCase()===code && String(m.name)===name))return toast('Select a valid saved Code');
+  if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
+  const r0=await apiInsert('entries',{code,name,amount,month,remarks});
+  const r={data:r0.data?.[0],error:r0.error};
+  if(r.error)return toast('Save failed');
+  data.push(r.data);
+  last={...r.data,date:new Date().toLocaleDateString('en-GB')};
+  refresh();
+  receipt();
+  clearEntry();
+  toast('✓ Payment saved');
 }
 $('saveBtn').addEventListener('click',save);
 
-function clearEntry(){$('en').value='';$('ec').value='';$('ea').value='';$('em').value='';$('er').value='';}
+function clearEntry(){$('entryCodeSearch').value='';$('entryName').value='';$('ea').value='';$('em').value='';$('er').value='';}
 $('clearBtn').addEventListener('click',clearEntry);
 
 function receipt(){
