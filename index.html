@@ -550,21 +550,25 @@ async function userLogin(){
   setLoggedIn(profile);
   await load();
 
-  // Normal users are restricted to their own dashboard data in the UI.
-  data=data.filter(x=>String(x.code||'').toUpperCase()===code);
-  refresh();
+  // Keep the Master Admin totals visible on the normal user's dashboard.
+  // User payment rows below remain restricted to that user's own Code.
+  const allData=[...data];
 
   $('userDashName').textContent=profile.name||'User';
   $('userDashCode').textContent=code;
 
   const now=new Date();
   const currentMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
-  const myTotal=data.reduce((s,x)=>s+Number(x.amount||0),0);
-  const myMonth=data.filter(x=>x.month===currentMonth).reduce((s,x)=>s+Number(x.amount||0),0);
+  const overallTotal=allData.reduce((s,x)=>s+Number(x.amount||0),0);
+  const overallMonth=allData.filter(x=>x.month===currentMonth).reduce((s,x)=>s+Number(x.amount||0),0);
 
-  $('userTotal').textContent=money(myTotal);
-  $('userMonthlyTotal').textContent=money(myMonth);
+  $('userTotal').textContent=money(overallTotal);
+  $('userMonthlyTotal').textContent=money(overallMonth);
   $('userMonthlyLabel').textContent=' · '+currentMonth;
+
+  // Normal users are restricted to their own payment/report details.
+  data=allData.filter(x=>String(x.code||'').toUpperCase()===code);
+  refresh();
 
   const rows=[...data].sort((a,b)=>String(b.month).localeCompare(String(a.month))).map(x=>`
     <div class="row">
@@ -589,8 +593,8 @@ async function userLogin(){
   }
 
   const reportMonths=[...Object.keys(byMonth)].sort().reverse();
-  $('userReportMonthTotal').textContent=money(myMonth);
-  $('userReportTotal').textContent=money(myTotal);
+  $('userReportMonthTotal').textContent=money(overallMonth);
+  $('userReportTotal').textContent=money(overallTotal);
 
   $('userCollectionReport').innerHTML=reportMonths.length
     ? reportMonths.map(m=>`
