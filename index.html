@@ -63,7 +63,18 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 <style>
 .authGate{position:fixed;inset:0;background:linear-gradient(145deg,#0f172a,#134e4a);z-index:20000;display:flex;align-items:center;justify-content:center;padding:20px}.authCard{width:min(430px,100%);background:#fff;border-radius:24px;padding:26px;box-shadow:0 25px 70px #0005}.authBrand{text-align:center;font-size:28px;font-weight:900;letter-spacing:2px;color:#123}.authSub{text-align:center;color:#718096;margin:6px 0 22px}.authActions{display:flex;gap:10px;flex-direction:column;margin-top:16px}.authActions button{width:100%}.authError{display:none;background:#fff0f0;color:#b42318;border:1px solid #ffd0d0;border-radius:10px;padding:10px;margin-top:12px;font-size:13px}.authInfo{background:#f3f7f7;border-radius:12px;padding:11px;margin-top:14px;font-size:12px;color:#52606d}.logoutBtn{display:none;margin-left:8px}.sessionUser{font-size:12px;color:#5b6877;margin-top:12px;text-align:center}.authLink{background:none;color:#0f766e;font-weight:800;padding:5px}.locked{background:#f1f5f9!important;color:#475569!important}.pendingBox{display:none;background:#fff8e7;color:#8a5a00;border:1px solid #f3d58a;border-radius:12px;padding:11px;margin-top:12px;font-size:13px}
 @media(max-width:560px){.authCard{padding:22px;border-radius:20px}.authBrand{font-size:24px}}
-</style></head>
+</style>
+<style>
+/* Normal users get a dashboard-only view. Master Admin keeps the full application. */
+.userMode #settingsBtn{display:none!important}
+.userMode #search{display:none!important}
+.userMode .wrap > section:not(.totalGrid):not(#announcementPanel){display:none!important}
+.userMode .totalGrid{margin-top:8px}
+.userMode .userDashboard{display:block!important}
+.userDashboard{display:none}
+.masterOnly{display:block}
+</style>
+</head>
 <body><script>
 // Settings must work independently of Supabase loading.
 window.openSettings=function(){var d=document.getElementById('drawer');if(d){d.classList.remove('hidden');d.setAttribute('aria-hidden','false');}};
@@ -80,26 +91,50 @@ document.addEventListener('DOMContentLoaded',function(){
 <div id="authGate" class="authGate">
   <div class="authCard">
     <div class="authBrand">AYALVASIKAL</div>
-    <div class="authSub" id="authTitle">Secure Login</div>
+    <div class="authSub" id="authTitle">Login</div>
 
-    <div id="loginPanel">
+    <div class="authActions" style="flex-direction:row;margin-bottom:14px">
+      <button class="secondary" type="button" id="userModeBtn" style="flex:1">👤 User</button>
+      <button class="secondary" type="button" id="masterModeBtn" style="flex:1">👑 Master Admin</button>
+    </div>
+
+    <div id="userLoginPanel">
       <div class="field">
         <label>Code</label>
         <input id="loginCode" type="text" autocomplete="username" placeholder="Enter your Code">
       </div>
-
-      <div class="field" style="margin-top:10px">
-        <label>Password</label>
-        <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Enter password">
-      </div>
-
-      <div id="authError" class="authError"></div>
-
+      <div id="userAuthError" class="authError"></div>
       <div class="authActions">
-        <button class="primary" type="button" id="loginBtn">🔐 Login</button>
-        <button class="secondary" type="button" id="createAccountBtn">＋ Create Account</button>
+        <button class="primary" type="button" id="userLoginBtn">🚀 Open Dashboard</button>
+      </div>
+      <div class="authInfo">
+        Enter the Code given to you by Master Admin.<br>
+        No username or password is required for normal users.
       </div>
     </div>
+
+    <div id="masterLoginPanel" style="display:none">
+      <div class="field">
+        <label>Master Admin Username</label>
+        <input id="masterUsername" type="text" autocomplete="username" value="shafithuyyath">
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Password</label>
+        <input id="masterPassword" type="password" autocomplete="current-password" placeholder="Enter Master Admin password">
+      </div>
+      <div id="masterAuthError" class="authError"></div>
+      <div class="authActions">
+        <button class="primary" type="button" id="masterLoginBtn">🔐 Master Login</button>
+      </div>
+      <div class="authInfo">
+        Master Admin username remains <b>shafithuyyath</b>.<br>
+        Master Admin has full control and Settings access.
+      </div>
+    </div>
+
+    <div id="sessionUser" class="sessionUser"></div>
+  </div>
+</div>
 
     <div id="registerPanel" style="display:none">
       <div class="field">
@@ -169,6 +204,18 @@ document.addEventListener('DOMContentLoaded',function(){
 </section>
 </div>
 
+<section id="userDashboard" class="card userDashboard">
+  <div class="settingTitle" style="margin-top:0">My Dashboard</div>
+  <div class="notice">
+    <b id="userDashName">User</b><br>
+    Code: <b id="userDashCode">—</b>
+  </div>
+  <div style="margin-top:10px">
+    <div class="small">My saved payments</div>
+    <div id="userDashRows"></div>
+  </div>
+</section>
+
 <section id="search" class="card">
 <div class="grid">
 <div class="field"><label>Name (saved names only)</label><select id="sn"><option value="">All saved names</option></select></div>
@@ -218,6 +265,7 @@ const db=true; // REST connection: no external Supabase JS library required.
 const AUTH_BASE=URL+'/auth/v1';
 
 let currentUser=null;
+let loginMode='user';
 
 function authMessage(j){
   return j?.msg || j?.message || j?.error_description || j?.error || 'Authentication failed';
@@ -227,335 +275,201 @@ async function authRequest(path,body){
   try{
     const r=await fetch(AUTH_BASE+path,{
       method:'POST',
-      headers:{
-        'apikey':KEY,
-        'Content-Type':'application/json'
-      },
+      headers:{'apikey':KEY,'Content-Type':'application/json'},
       body:JSON.stringify(body)
     });
     const j=await r.json().catch(()=>({}));
-    return r.ok ? {data:j,error:null} : {data:null,error:j};
+    return r.ok?{data:j,error:null}:{data:null,error:j};
   }catch(e){
     return {data:null,error:e};
   }
 }
 
-function authEmailByCode(code, profile){
-  if(profile && profile.email) return profile.email;
-
-  const c=String(code||'').trim().toUpperCase();
-
-  // Master Admin keeps the existing Supabase Auth email.
-  if(c==='C0000' || (profile && profile.username==='shafithuyyath')){
-    return 'myapp3111@gmail.com';
-  }
-
-  return c.toLowerCase()+'@login.ayalvasikal.local';
+function authEmail(username,profile){
+  if(profile?.email) return String(profile.email).trim().toLowerCase();
+  if(String(username||'').toLowerCase()==='shafithuyyath') return 'myapp3111@gmail.com';
+  return '';
 }
 
-async function authSignInByCode(code,password,profile){
-  return authRequest('/token?grant_type=password',{
-    email:authEmailByCode(code,profile),
-    password
+async function authSignIn(username,password,profile){
+  const email=authEmail(username,profile);
+  if(!email) return {data:null,error:{message:'Master Admin email is not configured.'}};
+  return authRequest('/token?grant_type=password',{email,password});
+}
+
+function showAuthError(msg,which='user'){
+  const id=which==='master'?'masterAuthError':'userAuthError';
+  const e=$(id);
+  if(e){e.textContent=msg;e.style.display='block';}
+}
+function clearAuthErrors(){
+  ['userAuthError','masterAuthError'].forEach(id=>{
+    const e=$(id);if(e){e.textContent='';e.style.display='none';}
   });
 }
 
-function showAuthError(msg){
-  const e=$('authError');
-  if(!e)return;
-  e.textContent=msg;
-  e.style.display='block';
+function showUserLogin(){
+  loginMode='user';
+  clearAuthErrors();
+  $('userLoginPanel').style.display='block';
+  $('masterLoginPanel').style.display='none';
+  $('authTitle').textContent='User Dashboard Login';
 }
-
-function clearAuthError(){
-  ['authError','registerError'].forEach(id=>{
-    const e=$(id);
-    if(e){
-      e.textContent='';
-      e.style.display='none';
-    }
-  });
-  const p=$('registerPending');
-  if(p){
-    p.textContent='';
-    p.style.display='none';
-  }
+function showMasterLogin(){
+  loginMode='master';
+  clearAuthErrors();
+  $('userLoginPanel').style.display='none';
+  $('masterLoginPanel').style.display='block';
+  $('authTitle').textContent='Master Admin Login';
 }
 
 function setLoggedIn(profile){
   currentUser=profile;
+  const isMaster=profile.role==='master_admin' || String(profile.username||'').toLowerCase()==='shafithuyyath';
+
   sessionStorage.setItem('ayalvasikal_user',JSON.stringify({
     id:profile.id,
     username:profile.username,
-    code:profile.code
+    code:profile.code,
+    role:profile.role
   }));
   sessionStorage.setItem('ayalvasikal_code',profile.code||'');
+
+  document.body.classList.toggle('userMode',!isMaster);
+  document.body.classList.toggle('masterMode',isMaster);
+
   $('authGate').style.display='none';
   $('logoutBtn').style.display='inline-block';
-  $('sessionUser').textContent='Logged in as '+profile.name+' · '+profile.role;
+  $('sessionUser').textContent='Logged in as '+profile.name+' · '+(isMaster?'Master Admin':'User');
+
+  if(!isMaster){
+    $('settingContent').innerHTML='';
+    closeSettings();
+  }
 }
 
 function setLoggedOut(){
   currentUser=null;
+  document.body.classList.remove('userMode','masterMode');
   sessionStorage.removeItem('ayalvasikal_user');
-  sessionStorage.removeItem('ayalvasikal_code');
   sessionStorage.removeItem('ayalvasikal_access_token');
+  sessionStorage.removeItem('ayalvasikal_code');
   $('authGate').style.display='flex';
   $('logoutBtn').style.display='none';
+  showUserLogin();
 }
 
 async function loadCurrentProfile(username){
-  try{
-    const r=await apiSelect('user_profiles','id');
-    if(r.error)return null;
-    return (r.data||[]).find(
-      u=>String(u.username||'').toLowerCase()===String(username||'').toLowerCase()
-    )||null;
-  }catch(e){return null}
+  const r=await apiSelect('user_profiles');
+  if(r.error)return null;
+  return (r.data||[]).find(
+    u=>String(u.username||'').toLowerCase()===String(username||'').toLowerCase()
+  )||null;
 }
 
 async function loadProfileByCode(code){
   try{
     const c=String(code||'').trim().toUpperCase();
+    const r=await apiSelect('user_profiles');
+    if(r.error)return null;
 
-    const r=await fetch(
-      `${URL}/rest/v1/user_profiles?select=*&code=eq.${encodeURIComponent(c)}&limit=1`,
-      {headers:apiHeaders}
-    );
-
-    const j=await r.json();
-
-    if(r.ok && Array.isArray(j) && j.length){
-      return j[0];
-    }
-
-    // Reserved Master Admin fallback while C0000 is being assigned.
-    if(c==='C0000'){
-      const r2=await fetch(
-        `${URL}/rest/v1/user_profiles?select=*&username=eq.shafithuyyath&limit=1`,
-        {headers:apiHeaders}
-      );
-      const j2=await r2.json();
-      if(r2.ok && Array.isArray(j2) && j2.length) return j2[0];
-    }
-
-    return null;
+    const profiles=r.data||[];
+    return profiles.find(
+      p=>String(p.code||'').toUpperCase()===c
+    )||null;
   }catch(e){
     console.error(e);
     return null;
   }
 }
 
-async function authSignIn(){
-  clearAuthError();
-
+async function userLogin(){
+  clearAuthErrors();
   const code=$('loginCode').value.trim().toUpperCase();
-  const password=$('loginPassword').value;
 
-  if(!code) return showAuthError('Please enter your Code.');
-  if(!password) return showAuthError('Please enter your Password.');
+  if(!code)return showAuthError('Please enter your Code.','user');
 
   const profile=await loadProfileByCode(code);
 
   if(!profile){
-    return showAuthError('This Code does not have an account.');
-  }
-
-  const status=profile.status || 'approved';
-
-  if(status!=='approved'){
-    if(status==='pending'){
-      return showAuthError('Your account is waiting for Master Admin approval.');
-    }
-    return showAuthError('Your account is not approved.');
-  }
-
-  const auth=await authSignInByCode(code,password,profile);
-
-  if(auth.error){
     return showAuthError(
-      authMessage(auth.error) || 'Invalid Code or Password.'
+      'This Code is not registered. Please contact Master Admin.',
+      'user'
     );
+  }
+
+  if(profile.role==='master_admin'){
+    return showAuthError('Use Master Admin login.','user');
+  }
+
+  if((profile.status||'approved')!=='approved'){
+    return showAuthError('This user is not approved yet.','user');
+  }
+
+  // Normal users do not need password.
+  setLoggedIn(profile);
+  await load();
+}
+
+async function masterLogin(){
+  clearAuthErrors();
+
+  const username=$('masterUsername').value.trim().toLowerCase();
+  const password=$('masterPassword').value;
+
+  if(username!=='shafithuyyath'){
+    return showAuthError(
+      'Master Admin username must be shafithuyyath.',
+      'master'
+    );
+  }
+
+  if(!password){
+    return showAuthError('Enter the Master Admin password.','master');
+  }
+
+  const profile=await loadCurrentProfile('shafithuyyath');
+
+  if(!profile){
+    return showAuthError(
+      'Master Admin profile was not found.',
+      'master'
+    );
+  }
+
+  if((profile.status||'approved')!=='approved'){
+    return showAuthError(
+      'Master Admin account is not approved.',
+      'master'
+    );
+  }
+
+  const r=await authSignIn(username,password,profile);
+
+  if(r.error){
+    return showAuthError(authMessage(r.error),'master');
   }
 
   sessionStorage.setItem(
     'ayalvasikal_access_token',
-    auth.data?.access_token || ''
+    r.data?.access_token||''
   );
 
   setLoggedIn(profile);
   await load();
 }
 
-async function loadRegistrationMembers(){
-  const select=$('registerName');
-  if(!select)return;
-
-  select.innerHTML='<option value="">Loading names...</option>';
-
-  try{
-    const membersResult=await apiSelect('members','name');
-
-    if(membersResult.error){
-      select.innerHTML='<option value="">Unable to load names</option>';
-      return;
-    }
-
-    const members=membersResult.data||[];
-
-    const profilesResult=await apiSelect('user_profiles','code');
-    const profiles=profilesResult.data||[];
-
-    const usedCodes=new Set(
-      profiles
-        .filter(p=>p.code)
-        .map(p=>String(p.code).toUpperCase())
-    );
-
-    const available=members.filter(m=>{
-      const code=String(m.code||'').toUpperCase();
-      return code && !usedCodes.has(code);
-    });
-
-    select.innerHTML='<option value="">Select your name</option>';
-
-    available.forEach(m=>{
-      const o=document.createElement('option');
-      o.value=m.code;
-      o.dataset.name=m.name;
-      o.textContent=m.name+' — '+m.code;
-      select.appendChild(o);
-    });
-
-    if(!available.length){
-      select.innerHTML='<option value="">No available names</option>';
-    }
-
-  }catch(e){
-    console.error(e);
-    select.innerHTML='<option value="">Unable to load names</option>';
-  }
-}
-
-function selectRegisterMember(){
-  const select=$('registerName');
-  const codeInput=$('registerCode');
-  if(!select || !codeInput)return;
-
-  const option=select.options[select.selectedIndex];
-
-  codeInput.value=option && option.value
-    ? option.value.toUpperCase()
-    : '';
-}
-
-function showCreateAccount(){
-  clearAuthError();
-  $('loginPanel').style.display='none';
-  $('registerPanel').style.display='block';
-  $('authTitle').textContent='Create Account';
-  loadRegistrationMembers();
-}
-
-function showLoginForm(){
-  clearAuthError();
-  $('registerPanel').style.display='none';
-  $('loginPanel').style.display='block';
-  $('authTitle').textContent='Secure Login';
-}
-
-async function registerAccount(){
-  clearAuthError();
-
-  const select=$('registerName');
-  const option=select.options[select.selectedIndex];
-
-  const name=option?.dataset?.name || '';
-  const code=$('registerCode').value.trim().toUpperCase();
-  const password=$('registerPassword').value;
-  const password2=$('registerPassword2').value;
-
-  if(!name || !code){
-    $('registerError').textContent='Please select your saved name.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  if(password.length<8){
-    $('registerError').textContent='Password must contain at least 8 characters.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  if(password!==password2){
-    $('registerError').textContent='Passwords do not match.';
-    $('registerError').style.display='block';
-    return;
-  }
-
-  const btn=$('registerBtn');
-  btn.disabled=true;
-  btn.textContent='Creating...';
-
-  try{
-    const response=await fetch(
-      URL+'/functions/v1/register-user',
-      {
-        method:'POST',
-        headers:{
-          'apikey':KEY,
-          'Content-Type':'application/json'
-        },
-        body:JSON.stringify({
-          name:name,
-          code:code,
-          password:password
-        })
-      }
-    );
-
-    const result=await response.json().catch(()=>({}));
-
-    if(!response.ok){
-      $('registerError').textContent=
-        result.error || result.details || 'Account creation failed.';
-      $('registerError').style.display='block';
-      return;
-    }
-
-    $('registerPending').textContent=
-      '✓ Account created successfully. Your account is now waiting for Master Admin approval.';
-    $('registerPending').style.display='block';
-
-    $('registerName').value='';
-    $('registerCode').value='';
-    $('registerPassword').value='';
-    $('registerPassword2').value='';
-
-  }catch(error){
-    console.error(error);
-    $('registerError').textContent=
-      'Unable to create account. Please try again.';
-    $('registerError').style.display='block';
-  }finally{
-    btn.disabled=false;
-    btn.textContent='Create Account';
-  }
-}
-
 function bindAuthButtons(){
-  $('loginBtn').onclick=authSignIn;
-  $('createAccountBtn').onclick=showCreateAccount;
-  $('backLoginBtn').onclick=showLoginForm;
-  $('registerBtn').onclick=registerAccount;
-  $('registerName').addEventListener('change',selectRegisterMember);
+  $('userModeBtn').onclick=showUserLogin;
+  $('masterModeBtn').onclick=showMasterLogin;
+  $('userLoginBtn').onclick=userLogin;
+  $('masterLoginBtn').onclick=masterLogin;
 
-  $('loginPassword').addEventListener('keydown',e=>{
-    if(e.key==='Enter')authSignIn();
+  $('loginCode').addEventListener('keydown',e=>{
+    if(e.key==='Enter')userLogin();
   });
-
-  $('registerPassword2').addEventListener('keydown',e=>{
-    if(e.key==='Enter')registerAccount();
+  $('masterPassword').addEventListener('keydown',e=>{
+    if(e.key==='Enter')masterLogin();
   });
 }
 
@@ -617,10 +531,14 @@ function toast(x){
 }
 
 function openSettings(){
-  if(!currentUser) return showAuthError('Please login first.');
-  const d=$('drawer'); if(!d) return;
+  if(!currentUser) return;
+  const isMaster=currentUser.role==='master_admin' ||
+    String(currentUser.username||'').toLowerCase()==='shafithuyyath';
+  if(!isMaster) return;
+  const d=$('drawer');
+  if(!d)return;
   d.classList.remove('hidden');
-  $('drawer').setAttribute('aria-hidden','false');
+  d.setAttribute('aria-hidden','false');
 }
 function closeSettings(){
   const d=$('drawer'); if(!d) return;
@@ -1357,11 +1275,20 @@ $('printBtn').addEventListener('click',()=>window.print());
   if(saved){
     try{
       const x=JSON.parse(saved);
-      const p=x.code
-        ? await loadProfileByCode(x.code)
-        : await loadCurrentProfile(x.username);
+      const p=x.role==='master_admin' || String(x.username||'').toLowerCase()==='shafithuyyath'
+        ? await loadCurrentProfile('shafithuyyath')
+        : await loadProfileByCode(x.code);
 
       if(p){
+        const isMaster=p.role==='master_admin' ||
+          String(p.username||'').toLowerCase()==='shafithuyyath';
+
+        // Master requires a real Supabase Auth session; normal users use Code-only dashboard.
+        if(isMaster && !sessionStorage.getItem('ayalvasikal_access_token')){
+          setLoggedOut();
+          return;
+        }
+
         setLoggedIn(p);
         await load();
         return;
