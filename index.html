@@ -562,12 +562,17 @@ async function userLogin(){
   const overallTotal=allData.reduce((s,x)=>s+Number(x.amount||0),0);
   const overallMonth=allData.filter(x=>x.month===currentMonth).reduce((s,x)=>s+Number(x.amount||0),0);
 
-  $('userTotal').textContent=money(overallTotal);
-  $('userMonthlyTotal').textContent=money(overallMonth);
+  // TOP cards = this logged-in user's own collection.
+  const myData=allData.filter(x=>String(x.code||'').toUpperCase()===code);
+  const myTotal=myData.reduce((s,x)=>s+Number(x.amount||0),0);
+  const myMonth=myData.filter(x=>x.month===currentMonth).reduce((s,x)=>s+Number(x.amount||0),0);
+
+  $('userTotal').textContent=money(myTotal);
+  $('userMonthlyTotal').textContent=money(myMonth);
   $('userMonthlyLabel').textContent=' · '+currentMonth;
 
-  // Normal users are restricted to their own payment/report details.
-  data=allData.filter(x=>String(x.code||'').toUpperCase()===code);
+  // Payment/report details below remain restricted to this user's Code.
+  data=myData;
   refresh();
 
   const rows=[...data].sort((a,b)=>String(b.month).localeCompare(String(a.month))).map(x=>`
@@ -593,6 +598,7 @@ async function userLogin(){
   }
 
   const reportMonths=[...Object.keys(byMonth)].sort().reverse();
+  // BOTTOM Collection Report cards = Master Admin's overall totals.
   $('userReportMonthTotal').textContent=money(overallMonth);
   $('userReportTotal').textContent=money(overallTotal);
 
