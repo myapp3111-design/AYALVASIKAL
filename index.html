@@ -93,6 +93,11 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 .bannerPreview{width:100%;max-height:260px;object-fit:cover;border-radius:15px;border:1px solid var(--line);margin-top:10px}
 @media(max-width:650px){.dashboardBanner{max-height:220px}}
 </style>
+<style>
+#announcementPanel.hidden{display:none!important}
+#announcementImage{display:none}
+#announcementImage.loaded{display:block}
+</style>
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -248,18 +253,17 @@ document.addEventListener('DOMContentLoaded',function(){
 </section>
 
 <section id="paymentEntry" class="card">
-<div class="settingTitle" style="margin-top:0">Payment Entry</div>
 <div class="grid">
-<div class="field"><label>Code Search</label><input id="entryCodeSearch" type="text" placeholder="Search Code e.g. C0001" autocomplete="off" list="entryCodeList"><datalist id="entryCodeList"></datalist></div>
-<div class="field"><label>Name</label><input id="entryName" readonly placeholder="Name appears automatically"></div>
-<div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01" placeholder="0.00"></div>
+<div class="field"><label>Saved Name</label><select id="en"><option value="">Select name</option></select></div>
+<div class="field"><label>Code</label><input id="ec" readonly></div>
+<div class="field"><label>Amount</label><input id="ea" type="number" min="0" step="0.01"></div>
 <div class="field"><label>Month + Year</label><input id="em" type="month"></div>
-<div class="field full"><label>Remarks</label><textarea id="er" rows="2" placeholder="Optional remarks"></textarea></div>
+<div class="field full"><label>Remarks</label><textarea id="er" rows="2"></textarea></div>
 </div>
-<div class="actions"><button class="primary" id="saveBtn">💾 Save</button><button class="secondary" id="clearBtn">Clear</button></div>
+<div class="actions"><button class="primary" id="saveBtn">💾 Save Payment</button><button class="secondary" id="clearBtn">Clear</button></div>
 </section>
 
-<section id="receiptCard"section id="receiptCard" class="card hidden">
+<section id="receiptCard" class="card hidden">
 <div id="receipt" class="receipt"></div>
 <div class="actions"><button class="primary" id="shareBtn">📱 Share Receipt to WhatsApp</button></div>
 </section>
@@ -645,11 +649,26 @@ function bannerPublicUrl(){
 async function loadBanner(){
   const panel=$('announcementPanel'), img=$('announcementImage');
   if(!panel||!img)return;
+
+  panel.classList.add('hidden');
+  img.classList.remove('loaded');
+  img.removeAttribute('src');
+
   const url=bannerPublicUrl()+'?v='+Date.now();
-  img.onload=()=>{panel.classList.remove('hidden');};
-  img.onerror=()=>{panel.classList.add('hidden');};
+
+  img.onload=()=>{
+    img.classList.add('loaded');
+    panel.classList.remove('hidden');
+  };
+
+  img.onerror=()=>{
+    img.classList.remove('loaded');
+    panel.classList.add('hidden');
+  };
+
   img.src=url;
 }
+
 async function renderBannerSettings(){
   if(!currentUser || currentUser.role!=='master_admin')return toast('Only Master Admin can manage the photo');
   showSetting('Photo / Banner',`
@@ -1279,6 +1298,7 @@ async function load(){
  if(r.error){toast('Database error');return}
  data=r.data||[];
  await loadMembers();
+ await loadBanner();
  refresh();
 }
 
@@ -1334,28 +1354,24 @@ $('sn').addEventListener('change',()=>{
 
 
 async function save(){
-  if(!db)return toast('Database connection unavailable');
-  const code=$('entryCodeSearch').value.trim().toUpperCase();
-  const name=$('entryName').value.trim();
-  const amount=Number($('ea').value);
-  const month=$('em').value;
-  const remarks=$('er').value.trim();
-  if(!code||!name||!amount||!month)return toast('Complete Code, Amount and Month');
-  if(!members.some(m=>String(m.code).toUpperCase()===code && String(m.name)===name))return toast('Select a valid saved Code');
-  if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
-  const r0=await apiInsert('entries',{code,name,amount,month,remarks});
-  const r={data:r0.data?.[0],error:r0.error};
-  if(r.error)return toast('Save failed');
-  data.push(r.data);
-  last={...r.data,date:new Date().toLocaleDateString('en-GB')};
-  refresh();
-  receipt();
-  clearEntry();
-  toast('✓ Payment saved');
+ if(!db)return toast('Database connection unavailable');
+ let name=$('en').value,code=$('ec').value,amount=Number($('ea').value),month=$('em').value,remarks=$('er').value.trim();
+ if(!name||!code||!amount||!month)return toast('Complete Name, Amount and Month');
+ if(!members.some(m=>m.code===code && m.name===name))return toast('Select a saved Name & Code');
+ if(data.some(x=>x.code===code&&x.month===month))return toast('Payment already saved for this month');
+ let r0=await apiInsert('entries',{code,name,amount,month,remarks});
+ let r={data:r0.data?.[0],error:r0.error};
+ if(r.error)return toast('Save failed');
+ data.push(r.data);
+ last={...r.data,date:new Date().toLocaleDateString('en-GB')};
+ refresh();
+ receipt();
+ clearEntry();
+ toast('✓ Payment saved');
 }
 $('saveBtn').addEventListener('click',save);
 
-function clearEntry(){$('entryCodeSearch').value='';$('entryName').value='';$('ea').value='';$('em').value='';$('er').value='';}
+function clearEntry(){$('en').value='';$('ec').value='';$('ea').value='';$('em').value='';$('er').value='';}
 $('clearBtn').addEventListener('click',clearEntry);
 
 function receipt(){
@@ -1378,6 +1394,14 @@ function share(){
 $('shareBtn').addEventListener('click',share);
 $('printBtn').addEventListener('click',()=>window.print());
 
+document.addEventListener('DOMContentLoaded',function(){
+  const u=$('userModeBtn'),m=$('masterModeBtn'),ub=$('userLoginBtn'),mb=$('masterLoginBtn');
+  if(u)u.onclick=showUserLogin;
+  if(m)m.onclick=showMasterLogin;
+  if(ub)ub.onclick=userLogin;
+  if(mb)mb.onclick=masterLogin;
+  showUserLogin();
+});
 (async function bootAuth(){
   const saved=sessionStorage.getItem('ayalvasikal_user');
 
@@ -1409,16 +1433,5 @@ $('printBtn').addEventListener('click',()=>window.print());
 })();
 </script>
 
-document.addEventListener('DOMContentLoaded',function(){
-  const u=document.getElementById('userModeBtn');
-  const m=document.getElementById('masterModeBtn');
-  const ub=document.getElementById('userLoginBtn');
-  const mb=document.getElementById('masterLoginBtn');
-  if(u)u.onclick=showUserLogin;
-  if(m)m.onclick=showMasterLogin;
-  if(ub)ub.onclick=userLogin;
-  if(mb)mb.onclick=masterLogin;
-  showUserLogin();
-});
 </body>
 </html>
