@@ -142,6 +142,14 @@ body.masterMode #er{
 }
 #paymentEntry input[readonly]{background:#f3f7f7;color:#123;font-weight:700}
 </style>
+<style>
+.userReportRow{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px;padding:12px 0;border-bottom:1px solid var(--line)
+}
+.userReportRow .monthName{font-weight:800}
+.userReportRow .monthRemark{font-size:12px;color:var(--muted);margin-top:3px}
+</style>
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
@@ -267,7 +275,7 @@ document.addEventListener('DOMContentLoaded',function(){
 <div class="value" id="total">QAR 0.00</div>
 </section>
 <section class="total monthly">
-<div class="label">This Month Amount <span id="monthlyLabel"></span></div>
+<div class="label">TOTAL MONTH COLLECTION <span id="monthlyLabel"></span></div>
 <div class="value" id="monthlyTotal">QAR 0.00</div>
 </section>
 </div>
@@ -289,6 +297,19 @@ document.addEventListener('DOMContentLoaded',function(){
   </div>
   <div class="settingTitle">My Payments</div>
   <div id="userDashRows"></div>
+
+  <div class="settingTitle" style="margin-top:18px">Collection Report</div>
+  <div class="totalGrid" style="margin-top:10px">
+    <section class="total monthly">
+      <div class="label">Total Month Collection</div>
+      <div class="value" id="userReportMonthTotal">QAR 0.00</div>
+    </section>
+    <section class="total">
+      <div class="label">Total Collection Report</div>
+      <div class="value" id="userReportTotal">QAR 0.00</div>
+    </section>
+  </div>
+  <div id="userCollectionReport" style="margin-top:10px"></div>
 </section>
 
 <section id="masterSearch" class="card">
@@ -556,6 +577,34 @@ async function userLogin(){
   `).join('');
 
   $('userDashRows').innerHTML=rows||'<div class="small" style="padding:12px 0">No payments saved yet.</div>';
+
+  // User collection report: month-wise totals for this user only.
+  const byMonth={};
+  for(const x of data){
+    const m=String(x.month||'');
+    if(!m)continue;
+    if(!byMonth[m])byMonth[m]={total:0,remarks:[]};
+    byMonth[m].total+=Number(x.amount||0);
+    if(x.remarks)byMonth[m].remarks.push(String(x.remarks));
+  }
+
+  const reportMonths=[...Object.keys(byMonth)].sort().reverse();
+  $('userReportMonthTotal').textContent=money(myMonth);
+  $('userReportTotal').textContent=money(myTotal);
+
+  $('userCollectionReport').innerHTML=reportMonths.length
+    ? reportMonths.map(m=>`
+      <div class="userReportRow">
+        <div>
+          <div class="monthName">${esc(reportMonthLabel(m))}</div>
+          ${byMonth[m].remarks.length
+            ? `<div class="monthRemark">${esc(byMonth[m].remarks.join(' · '))}</div>`
+            : ''}
+        </div>
+        <b>${money(byMonth[m].total)}</b>
+      </div>
+    `).join('')
+    : '<div class="small" style="padding:12px 0">No collection report yet.</div>';
 }
 
 async function masterLogin(){
@@ -1344,7 +1393,13 @@ async function renderReports(){
   if(!members.length) await loadMembers();
   const ms=reportMonths();
   const people=[...members].sort((a,b)=>String(a.code).localeCompare(String(b.code),undefined,{numeric:true}));
-  const first=ms[0]||'';
+
+  // Reports open on the actual current month by default,
+  // even when future-month payments (for example November) already exist.
+  const nowReport=new Date();
+  const currentReportMonth=nowReport.getFullYear()+'-'+String(nowReport.getMonth()+1).padStart(2,'0');
+  if(!ms.includes(currentReportMonth)) ms.unshift(currentReportMonth);
+  const first=currentReportMonth;
   showSetting('Reports',`
     <div class="notice"><b>Monthly Report</b><br>Choose a From Month and To Month, then show ✓ Given, ✕ Not Given, or All.</div>
     <div class="grid" style="margin-top:12px">
