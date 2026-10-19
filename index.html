@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div id="masterLoginPanel" style="display:none">
       <div class="field">
         <label>Master Admin Username</label>
-        <input id="masterUsername" type="text" autocomplete="username" value="shafithuyyath">
+        <input id="masterUsername" type="text" autocomplete="username" value="admin">
       </div>
       <div class="field" style="margin-top:10px">
         <label>Password</label>
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded',function(){
         <button class="primary" type="button" id="masterLoginBtn" onclick="masterLogin()">🔐 Master Login</button>
       </div>
       <div class="authInfo">
-        Master Admin username remains <b>shafithuyyath</b>.<br>
+        Master Admin username remains <b>admin</b>.<br>
         Master Admin has full control and Settings access.
       </div>
     </div>
@@ -421,7 +421,7 @@ async function authRequest(path,body){
 
 function authEmail(username,profile){
   if(profile?.email) return String(profile.email).trim().toLowerCase();
-  if(String(username||'').toLowerCase()==='shafithuyyath') return 'myapp3111@gmail.com';
+  if(String(username||'').toLowerCase()==='admin') return 'myapp3111@gmail.com';
   return '';
 }
 
@@ -464,7 +464,7 @@ function setLoggedIn(profile){
 
   const isMaster=
     profile.role==='master_admin' ||
-    String(profile.username||'').toLowerCase()==='shafithuyyath';
+    String(profile.username||'').toLowerCase()==='admin';
 
   sessionStorage.setItem(
     'ayalvasikal_user',
@@ -623,8 +623,8 @@ async function masterLogin(){
   const username=String($('masterUsername')?.value||'').trim().toLowerCase();
   const password=String($('masterPassword')?.value||'');
 
-  if(username!=='shafithuyyath'){
-    return showAuthError('Master Admin username must be shafithuyyath.','master');
+  if(username!=='admin'){
+    return showAuthError('Master Admin username must be admin.','master');
   }
   if(!password){
     return showAuthError('Enter the Master Admin password.','master');
@@ -633,7 +633,7 @@ async function masterLogin(){
   // The Master Auth account already exists with this email.
   // Keep this separate from normal Code-only users.
   const masterAuthProfile={
-    username:'shafithuyyath',
+    username:'admin',
     email:'myapp3111@gmail.com',
     name:'Master Admin',
     role:'master_admin',
@@ -652,18 +652,18 @@ async function masterLogin(){
     }
   };
 
-  const dbProfile=await loadCurrentProfile('shafithuyyath');
+  const dbProfile=await loadCurrentProfile('admin');
   const profile=dbProfile ? {
     ...masterAuthProfile,
     ...dbProfile,
-    username:'shafithuyyath',
+    username:'admin',
     role:'master_admin',
     status:'approved',
     email:dbProfile.email||'myapp3111@gmail.com',
     permissions:dbProfile.permissions||masterAuthProfile.permissions
   } : masterAuthProfile;
 
-  const r=await authSignIn('shafithuyyath',password,profile);
+  const r=await authSignIn('admin',password,profile);
 
   if(r.error){
     return showAuthError(
@@ -762,7 +762,7 @@ function toast(x){
 function openSettings(){
   if(!currentUser) return;
   const isMaster=currentUser.role==='master_admin' ||
-    String(currentUser.username||'').toLowerCase()==='shafithuyyath';
+    String(currentUser.username||'').toLowerCase()==='admin';
   if(!isMaster) return;
   const d=$('drawer');
   if(!d)return;
@@ -1759,13 +1759,13 @@ document.addEventListener('DOMContentLoaded',function(){
   if(saved){
     try{
       const x=JSON.parse(saved);
-      const p=x.role==='master_admin' || String(x.username||'').toLowerCase()==='shafithuyyath'
-        ? await loadCurrentProfile('shafithuyyath')
+      const p=x.role==='master_admin' || String(x.username||'').toLowerCase()==='admin'
+        ? await loadCurrentProfile('admin')
         : await loadProfileByCode(x.code);
 
       if(p){
         const isMaster=p.role==='master_admin' ||
-          String(p.username||'').toLowerCase()==='shafithuyyath';
+          String(p.username||'').toLowerCase()==='admin';
 
         // Master requires a real Supabase Auth session; normal users use Code-only dashboard.
         if(isMaster && !sessionStorage.getItem('ayalvasikal_access_token')){
