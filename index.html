@@ -905,10 +905,18 @@ async function compressBanner(file){
 }
 async function uploadBanner(){
   const file=$('bannerFile')?.files?.[0];
-  if(!file)return toast('Select a photo first');
-  const blob=await compressBanner(file);
-  const token=sessionStorage.getItem('ayalvasikal_access_token')||KEY;
+  if(!file){toast('Please choose a photo first.');return;}
+  if(!currentUser || !(currentUser.role==='master_admin' || String(currentUser.username||'').toLowerCase()==='shafithuyyath')){
+    toast('Only Master Admin can upload the dashboard photo.');return;
+  }
+  const btn=$('uploadBannerBtn');
+  const originalText=btn?.textContent||'⬆ Upload Photo';
+  if(btn){btn.disabled=true;btn.textContent='Uploading…';}
   try{
+    const blob=await compressBanner(file);
+    if(!blob) throw new Error('Could not prepare this image. Please choose another JPG or PNG photo.');
+    const token=sessionStorage.getItem('ayalvasikal_access_token');
+    if(!token) throw new Error('Your login session is missing. Please log out and sign in again as Master Admin.');
     const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}/${BANNER_PATH}`,{
       method:'POST',
       headers:{
@@ -920,12 +928,23 @@ async function uploadBanner(){
       },
       body:blob
     });
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok)return toast(j.message||j.error||'Photo upload failed. Check Storage setup.');
+    const raw=await r.text();
+    let j={};try{j=raw?JSON.parse(raw):{};}catch(_){j={message:raw};}
+    if(!r.ok){
+      const detail=j.message||j.error_description||j.error||j.msg||raw||`HTTP ${r.status} ${r.statusText}`;
+      console.error('Banner upload failed:',r.status,j);
+      throw new Error(`Upload failed (${r.status}): ${detail}`);
+    }
     await loadBanner();
     await renderBannerSettings();
-    toast('✓ Photo uploaded');
-  }catch(e){console.error(e);toast('Photo upload failed');}
+    toast('✓ Photo uploaded successfully');
+  }catch(e){
+    console.error('Banner upload error:',e);
+    toast(e?.message||'Photo upload failed. Please try again.');
+  }finally{
+    const liveBtn=$('uploadBannerBtn');
+    if(liveBtn){liveBtn.disabled=false;liveBtn.textContent=originalText;}
+  }
 }
 async function deleteBanner(){
   if(!confirm('Delete the dashboard photo?'))return;
