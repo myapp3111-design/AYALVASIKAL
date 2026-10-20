@@ -36,11 +36,14 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 </style>
 <style>
 /* Admin controls and compact selected-person summary */
-.topActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.topActions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.topActions .gear{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;font-size:18px;line-height:1}
+.topActions .gear .buttonText{display:none}
 #refreshBtn{display:none}
-body.masterMode #refreshBtn{display:inline-block!important}
+body.masterMode #refreshBtn{display:inline-flex!important;align-items:center;justify-content:center}
 body.userMode #refreshBtn{display:none!important}
 #masterPersonSummary .masterPersonTotals .total{padding:12px 14px;border-radius:14px;box-shadow:none}
+#masterPersonSummary .masterPersonTotals .total.monthly{background:linear-gradient(135deg,#0f172a,#1e293b)!important}
 #masterPersonSummary .masterPersonTotals .value{font-size:22px;line-height:1.25;margin-top:5px;overflow-wrap:anywhere}
 #masterPersonSummary .masterPersonTotals .label{font-size:10px;letter-spacing:.8px}
 @media(max-width:560px){#masterPersonSummary .masterPersonTotals .value{font-size:19px}.topActions{gap:6px}}
@@ -78,7 +81,7 @@ body.userMode #refreshBtn{display:none!important}
 <style>
 /* Normal users get dashboard only. Master Admin gets full controls. */
 .userMode #settingsBtn{display:none!important}
-.userMode #logoutBtn{display:inline-block!important}
+.userMode #logoutBtn{display:inline-flex!important;align-items:center;justify-content:center}
 .userMode #search{display:none!important}
 .userMode #receiptCard{display:none!important}
 .userMode .wrap > section:not(.totalGrid):not(#announcementPanel):not(#userDashboard){display:none!important}
@@ -125,7 +128,7 @@ body.userMode #refreshBtn{display:none!important}
 body.masterMode #masterSearch,
 body.masterMode #paymentEntry,
 body.masterMode #settingsBtn,
-body.masterMode #logoutBtn{display:block!important}
+body.masterMode #logoutBtn{display:inline-flex!important;align-items:center;justify-content:center}
 body.masterMode #userDashboard{display:none!important}
 </style>
 
@@ -182,7 +185,7 @@ document.addEventListener('DOMContentLoaded',function(){
 
     <div class="authActions" style="flex-direction:row;margin-bottom:14px">
       <button class="secondary" type="button" id="userModeBtn" style="flex:1" onclick="showUserLogin()">👤 User</button>
-      <button class="secondary" type="button" id="masterModeBtn" style="flex:1" onclick="showMasterLogin()">👑 Master Admin</button>
+      <button class="secondary" type="button" id="masterModeBtn" style="flex:1" onclick="showMasterLogin()">👑 Admin</button>
     </div>
 
     <div id="userLoginPanel">
@@ -202,8 +205,8 @@ document.addEventListener('DOMContentLoaded',function(){
 
     <div id="masterLoginPanel" style="display:none">
       <div class="field">
-        <label>Master Admin Username</label>
-        <input id="masterUsername" type="text" autocomplete="username" value="shafithuyyath">
+        <label>Admin Username</label>
+        <input id="masterUsername" type="text" autocomplete="username" value="admin">
       </div>
       <div class="field" style="margin-top:10px">
         <label>Password</label>
@@ -211,11 +214,11 @@ document.addEventListener('DOMContentLoaded',function(){
       </div>
       <div id="masterAuthError" class="authError"></div>
       <div class="authActions">
-        <button class="primary" type="button" id="masterLoginBtn" onclick="masterLogin()">🔐 Master Login</button>
+        <button class="primary" type="button" id="masterLoginBtn" onclick="masterLogin()">🔐 Admin Login</button>
       </div>
       <div class="authInfo">
-        Master Admin username remains <b>shafithuyyath</b>.<br>
-        Master Admin has full control and Settings access.
+        Username: <b>admin</b>.<br>
+        Admin has full control and Settings access.
       </div>
     </div>
 
@@ -272,9 +275,9 @@ document.addEventListener('DOMContentLoaded',function(){
 <div class="top">
   <div class="brand">AYALVASIKAL</div>
   <div class="topActions">
-    <button id="settingsBtn" class="gear hidden" type="button" onclick="openSettings()">⚙ Settings</button>
-    <button id="refreshBtn" class="gear" type="button" title="Reload latest data">↻ Refresh</button>
-    <button id="logoutBtn" class="gear logoutBtn" type="button">↪ Logout</button>
+    <button id="settingsBtn" class="gear hidden" type="button" onclick="openSettings()" title="Settings" aria-label="Settings">⚙</button>
+    <button id="refreshBtn" class="gear" type="button" title="Refresh data" aria-label="Refresh data">↻</button>
+    <button id="logoutBtn" class="gear logoutBtn" type="button" title="Logout" aria-label="Logout">↪</button>
   </div>
 </div>
 
@@ -286,11 +289,11 @@ document.addEventListener('DOMContentLoaded',function(){
 <div class="totalGrid">
 <section class="total">
 <div class="label">Collection Total</div>
-<div class="value" id="total">QAR 0.00</div>
+<div class="value" id="total">INR 0.00</div>
 </section>
 <section class="total monthly">
 <div class="label">This Month Total <span id="monthlyLabel"></span></div>
-<div class="value" id="monthlyTotal">QAR 0.00</div>
+<div class="value" id="monthlyTotal">INR 0.00</div>
 </section>
 </div>
 
@@ -302,11 +305,11 @@ document.addEventListener('DOMContentLoaded',function(){
   <div class="totalGrid" style="margin-top:12px">
     <section class="total monthly">
       <div class="label">This Month Collection Amount <span id="userMonthlyLabel"></span></div>
-      <div class="value" id="userMonthlyTotal">QAR 0.00</div>
+      <div class="value" id="userMonthlyTotal">INR 0.00</div>
     </section>
     <section class="total">
       <div class="label">Total Collection Amount</div>
-      <div class="value" id="userTotal">QAR 0.00</div>
+      <div class="value" id="userTotal">INR 0.00</div>
     </section>
   </div>
   <div class="settingTitle">My Payments</div>
@@ -316,11 +319,11 @@ document.addEventListener('DOMContentLoaded',function(){
   <div class="totalGrid" style="margin-top:10px">
     <section class="total monthly">
       <div class="label">Total Month Collection</div>
-      <div class="value" id="userReportMonthTotal">QAR 0.00</div>
+      <div class="value" id="userReportMonthTotal">INR 0.00</div>
     </section>
     <section class="total">
       <div class="label">Total Collection Report</div>
-      <div class="value" id="userReportTotal">QAR 0.00</div>
+      <div class="value" id="userReportTotal">INR 0.00</div>
     </section>
   </div>
   <div id="userCollectionReport" style="margin-top:10px"></div>
@@ -345,11 +348,11 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="totalGrid masterPersonTotals" style="margin-top:12px">
       <section class="total monthly">
         <div class="label">This Month Amount <span id="selectedPersonMonthLabel"></span></div>
-        <div class="value" id="selectedPersonMonthly">QAR 0.00</div>
+        <div class="value" id="selectedPersonMonthly">INR 0.00</div>
       </section>
       <section class="total">
         <div class="label">Total Collection Amount</div>
-        <div class="value" id="selectedPersonTotal">QAR 0.00</div>
+        <div class="value" id="selectedPersonTotal">INR 0.00</div>
       </section>
     </div>
   </div>
@@ -507,8 +510,8 @@ function setLoggedIn(profile){
   }
 
   $('sessionUser').textContent=
-    'Logged in as '+profile.name+
-    ' · '+(isMaster?'Master Admin':'User');
+    'Logged in as '+(isMaster?'Admin':profile.name)+
+    ' · '+(isMaster?'Admin':'User');
 
   if(!isMaster){
     closeSettings();
@@ -544,7 +547,7 @@ async function refreshAdminData(){
     return;
   }
   const btn=$('refreshBtn');
-  if(btn){btn.disabled=true;btn.textContent='↻ Loading…';}
+  if(btn){btn.disabled=true;btn.textContent='⟳';}
   try{
     const ok=await load();
     if(ok)toast('✓ Data refreshed');
@@ -552,7 +555,7 @@ async function refreshAdminData(){
     console.error(e);
     toast('Could not refresh data');
   }finally{
-    if(btn){btn.disabled=false;btn.textContent='↻ Refresh';}
+    if(btn){btn.disabled=false;btn.textContent='↻';}
   }
 }
 
@@ -667,8 +670,8 @@ async function masterLogin(){
   const username=String($('masterUsername')?.value||'').trim().toLowerCase();
   const password=String($('masterPassword')?.value||'');
 
-  if(username!=='shafithuyyath'){
-    return showAuthError('Master Admin username must be shafithuyyath.','master');
+  if(username!=='admin' && username!=='shafithuyyath'){
+    return showAuthError('Admin username must be admin.','master');
   }
   if(!password){
     return showAuthError('Enter the Master Admin password.','master');
@@ -796,7 +799,7 @@ async function apiDelete(table,column,value){
 let data=[],months=new Set(),last=null;
 
 
-const money=n=>'QAR '+Number(n||0).toFixed(2);
+const money=n=>'INR '+Number(n||0).toFixed(2);
 const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
 function toast(x){
