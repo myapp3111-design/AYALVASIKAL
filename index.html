@@ -35,6 +35,17 @@ button,input,select,textarea{font:inherit}button{cursor:pointer;border:0}
 @media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}.totalGrid{grid-template-columns:1fr}.value{font-size:35px}.top{padding:14px 10px}.wrap{padding:5px 8px 35px}.card{border-radius:16px;padding:14px}.drawerBox{width:100vw;max-width:none;padding:16px;padding-top:calc(16px + env(safe-area-inset-top));padding-bottom:calc(16px + env(safe-area-inset-bottom))}.drawerBox .menu{padding:15px}.reportTable{min-width:560px}}
 </style>
 <style>
+/* Admin controls and compact selected-person summary */
+.topActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#refreshBtn{display:none}
+body.masterMode #refreshBtn{display:inline-block!important}
+body.userMode #refreshBtn{display:none!important}
+#masterPersonSummary .masterPersonTotals .total{padding:12px 14px;border-radius:14px;box-shadow:none}
+#masterPersonSummary .masterPersonTotals .value{font-size:22px;line-height:1.25;margin-top:5px;overflow-wrap:anywhere}
+#masterPersonSummary .masterPersonTotals .label{font-size:10px;letter-spacing:.8px}
+@media(max-width:560px){#masterPersonSummary .masterPersonTotals .value{font-size:19px}.topActions{gap:6px}}
+</style>
+<style>
 .permGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.permItem{display:flex;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:13px}.permItem input{width:17px;height:17px}@media(max-width:560px){.permGrid{grid-template-columns:1fr}.drawerBox{width:100%;max-width:none}}
 @media print{
   body{background:#fff!important}
@@ -192,7 +203,7 @@ document.addEventListener('DOMContentLoaded',function(){
     <div id="masterLoginPanel" style="display:none">
       <div class="field">
         <label>Master Admin Username</label>
-        <input id="masterUsername" type="text" autocomplete="username" value="admin">
+        <input id="masterUsername" type="text" autocomplete="username" value="shafithuyyath">
       </div>
       <div class="field" style="margin-top:10px">
         <label>Password</label>
@@ -203,7 +214,7 @@ document.addEventListener('DOMContentLoaded',function(){
         <button class="primary" type="button" id="masterLoginBtn" onclick="masterLogin()">🔐 Master Login</button>
       </div>
       <div class="authInfo">
-        Master Admin username remains <b>admin</b>.<br>
+        Master Admin username remains <b>shafithuyyath</b>.<br>
         Master Admin has full control and Settings access.
       </div>
     </div>
@@ -260,8 +271,11 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <div class="top">
   <div class="brand">AYALVASIKAL</div>
-  <button id="settingsBtn" class="gear hidden" type="button" onclick="openSettings()">⚙ Settings</button>
-  <button id="logoutBtn" class="gear logoutBtn" type="button">↪ Logout</button>
+  <div class="topActions">
+    <button id="settingsBtn" class="gear hidden" type="button" onclick="openSettings()">⚙ Settings</button>
+    <button id="refreshBtn" class="gear" type="button" title="Reload latest data">↻ Refresh</button>
+    <button id="logoutBtn" class="gear logoutBtn" type="button">↪ Logout</button>
+  </div>
 </div>
 
 <main class="wrap">
@@ -271,11 +285,11 @@ document.addEventListener('DOMContentLoaded',function(){
 
 <div class="totalGrid">
 <section class="total">
-<div class="label">Total Collection Amount</div>
-<div class="value" id="total">INR 0.00</div>
+<div class="label">Collection Total</div>
+<div class="value" id="total">QAR 0.00</div>
 </section>
 <section class="total monthly">
-<div class="label">TOTAL MONTH COLLECTION <span id="monthlyLabel"></span></div>
+<div class="label">This Month Total <span id="monthlyLabel"></span></div>
 <div class="value" id="monthlyTotal">QAR 0.00</div>
 </section>
 </div>
@@ -288,11 +302,11 @@ document.addEventListener('DOMContentLoaded',function(){
   <div class="totalGrid" style="margin-top:12px">
     <section class="total monthly">
       <div class="label">This Month Collection Amount <span id="userMonthlyLabel"></span></div>
-      <div class="value" id="userMonthlyTotal">INR 0.00</div>
+      <div class="value" id="userMonthlyTotal">QAR 0.00</div>
     </section>
     <section class="total">
       <div class="label">Total Collection Amount</div>
-      <div class="value" id="userTotal">INR 0.00</div>
+      <div class="value" id="userTotal">QAR 0.00</div>
     </section>
   </div>
   <div class="settingTitle">My Payments</div>
@@ -302,11 +316,11 @@ document.addEventListener('DOMContentLoaded',function(){
   <div class="totalGrid" style="margin-top:10px">
     <section class="total monthly">
       <div class="label">Total Month Collection</div>
-      <div class="value" id="userReportMonthTotal">INR 0.00</div>
+      <div class="value" id="userReportMonthTotal">QAR 0.00</div>
     </section>
     <section class="total">
       <div class="label">Total Collection Report</div>
-      <div class="value" id="userReportTotal">INR 0.00</div>
+      <div class="value" id="userReportTotal">QAR 0.00</div>
     </section>
   </div>
   <div id="userCollectionReport" style="margin-top:10px"></div>
@@ -328,14 +342,14 @@ document.addEventListener('DOMContentLoaded',function(){
     <div class="notice">
       <b id="selectedPersonName">—</b> · <b id="selectedPersonCode">—</b>
     </div>
-    <div class="totalGrid" style="margin-top:12px">
+    <div class="totalGrid masterPersonTotals" style="margin-top:12px">
       <section class="total monthly">
         <div class="label">This Month Amount <span id="selectedPersonMonthLabel"></span></div>
-        <div class="value" id="selectedPersonMonthly">INR 0.00</div>
+        <div class="value" id="selectedPersonMonthly">QAR 0.00</div>
       </section>
       <section class="total">
         <div class="label">Total Collection Amount</div>
-        <div class="value" id="selectedPersonTotal">INR 0.00</div>
+        <div class="value" id="selectedPersonTotal">QAR 0.00</div>
       </section>
     </div>
   </div>
@@ -421,7 +435,7 @@ async function authRequest(path,body){
 
 function authEmail(username,profile){
   if(profile?.email) return String(profile.email).trim().toLowerCase();
-  if(String(username||'').toLowerCase()==='admin') return 'myapp3111@gmail.com';
+  if(String(username||'').toLowerCase()==='shafithuyyath') return 'myapp3111@gmail.com';
   return '';
 }
 
@@ -464,7 +478,7 @@ function setLoggedIn(profile){
 
   const isMaster=
     profile.role==='master_admin' ||
-    String(profile.username||'').toLowerCase()==='admin';
+    String(profile.username||'').toLowerCase()==='shafithuyyath';
 
   sessionStorage.setItem(
     'ayalvasikal_user',
@@ -509,7 +523,37 @@ function setLoggedOut(){
   sessionStorage.removeItem('ayalvasikal_code');
   $('authGate').style.display='flex';
   $('logoutBtn').style.display='none';
+  $('refreshBtn').style.display='none';
   showUserLogin();
+}
+
+async function logoutCurrentUser(){
+  const token=sessionStorage.getItem('ayalvasikal_access_token');
+  // Revoke the Supabase Auth session when a token exists. Always clear the local session,
+  // even if the network request fails, so the Logout button reliably returns to Login.
+  if(token){
+    try{
+      await fetch(AUTH_BASE+'/logout',{method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+token}});
+    }catch(e){console.warn('Remote sign-out failed; clearing local session.',e);}
+  }
+  setLoggedOut();
+}
+
+async function refreshAdminData(){
+  if(!currentUser || !(currentUser.role==='master_admin' || String(currentUser.username||'').toLowerCase()==='shafithuyyath')){
+    return;
+  }
+  const btn=$('refreshBtn');
+  if(btn){btn.disabled=true;btn.textContent='↻ Loading…';}
+  try{
+    const ok=await load();
+    if(ok)toast('✓ Data refreshed');
+  }catch(e){
+    console.error(e);
+    toast('Could not refresh data');
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='↻ Refresh';}
+  }
 }
 
 async function loadCurrentProfile(username){
@@ -623,8 +667,8 @@ async function masterLogin(){
   const username=String($('masterUsername')?.value||'').trim().toLowerCase();
   const password=String($('masterPassword')?.value||'');
 
-  if(username!=='admin'){
-    return showAuthError('Master Admin username must be admin.','master');
+  if(username!=='shafithuyyath'){
+    return showAuthError('Master Admin username must be shafithuyyath.','master');
   }
   if(!password){
     return showAuthError('Enter the Master Admin password.','master');
@@ -633,7 +677,7 @@ async function masterLogin(){
   // The Master Auth account already exists with this email.
   // Keep this separate from normal Code-only users.
   const masterAuthProfile={
-    username:'admin',
+    username:'shafithuyyath',
     email:'myapp3111@gmail.com',
     name:'Master Admin',
     role:'master_admin',
@@ -652,18 +696,18 @@ async function masterLogin(){
     }
   };
 
-  const dbProfile=await loadCurrentProfile('admin');
+  const dbProfile=await loadCurrentProfile('shafithuyyath');
   const profile=dbProfile ? {
     ...masterAuthProfile,
     ...dbProfile,
-    username:'admin',
+    username:'shafithuyyath',
     role:'master_admin',
     status:'approved',
     email:dbProfile.email||'myapp3111@gmail.com',
     permissions:dbProfile.permissions||masterAuthProfile.permissions
   } : masterAuthProfile;
 
-  const r=await authSignIn('admin',password,profile);
+  const r=await authSignIn('shafithuyyath',password,profile);
 
   if(r.error){
     return showAuthError(
@@ -689,6 +733,8 @@ async function masterLogin(){
 }
 
 function bindAuthButtons(){
+  $('logoutBtn').addEventListener('click',logoutCurrentUser);
+  $('refreshBtn').addEventListener('click',refreshAdminData);
   $('userModeBtn').onclick=showUserLogin;
   $('masterModeBtn').onclick=showMasterLogin;
   $('userLoginBtn').onclick=userLogin;
@@ -750,7 +796,7 @@ async function apiDelete(table,column,value){
 let data=[],months=new Set(),last=null;
 
 
-const money=n=>'INR '+Number(n||0).toFixed(2);
+const money=n=>'QAR '+Number(n||0).toFixed(2);
 const esc=x=>String(x??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
 function toast(x){
@@ -762,7 +808,7 @@ function toast(x){
 function openSettings(){
   if(!currentUser) return;
   const isMaster=currentUser.role==='master_admin' ||
-    String(currentUser.username||'').toLowerCase()==='admin';
+    String(currentUser.username||'').toLowerCase()==='shafithuyyath';
   if(!isMaster) return;
   const d=$('drawer');
   if(!d)return;
@@ -1465,13 +1511,14 @@ $('reportsBtn').addEventListener('click',()=>renderReports());
 
 
 async function load(){
- if(!db){toast('Database connection unavailable');return}
+ if(!db){toast('Database connection unavailable');return false}
  let r=await apiSelect('entries');
- if(r.error){toast('Database error');return}
+ if(r.error){toast('Database error');return false}
  data=r.data||[];
  await loadMembers();
  await loadBanner();
  refresh();
+ return true;
 }
 
 function refresh(){
@@ -1737,7 +1784,15 @@ document.addEventListener('DOMContentLoaded',function(){
   if(psb)psb.onclick=runMasterPersonSearch;
   if(pcb)pcb.onclick=clearMasterSearch;
   if(ps){
-    ps.addEventListener('keydown',e=>{if(e.key==='Enter')runMasterPersonSearch();});
+    ps.addEventListener('keydown',e=>{
+      if(e.key==='Backspace' && ps.value.length){
+        e.preventDefault();
+        clearMasterSearch();
+        ps.focus();
+      }else if(e.key==='Enter'){
+        runMasterPersonSearch();
+      }
+    });
     ps.addEventListener('input',()=>{
       const q=String(ps.value||'').trim();
       if(q.length>=2) renderMasterSearchResults(q);
@@ -1759,13 +1814,13 @@ document.addEventListener('DOMContentLoaded',function(){
   if(saved){
     try{
       const x=JSON.parse(saved);
-      const p=x.role==='master_admin' || String(x.username||'').toLowerCase()==='admin'
-        ? await loadCurrentProfile('admin')
+      const p=x.role==='master_admin' || String(x.username||'').toLowerCase()==='shafithuyyath'
+        ? await loadCurrentProfile('shafithuyyath')
         : await loadProfileByCode(x.code);
 
       if(p){
         const isMaster=p.role==='master_admin' ||
-          String(p.username||'').toLowerCase()==='admin';
+          String(p.username||'').toLowerCase()==='shafithuyyath';
 
         // Master requires a real Supabase Auth session; normal users use Code-only dashboard.
         if(isMaster && !sessionStorage.getItem('ayalvasikal_access_token')){
