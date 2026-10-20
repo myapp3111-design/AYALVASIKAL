@@ -826,6 +826,7 @@ function closeSettings(){
 window.openSettings=openSettings; window.closeSettings=closeSettings;
 
 function showSetting(title,html){
+  $('settingContent').dataset.view=(title==='Photo / Banner'?'banner':'other');
   $('settingContent').innerHTML='<div class="settingTitle">'+title+'</div>'+html;
 }
 
@@ -837,130 +838,158 @@ $('permissionsBtn').addEventListener('click', async ()=>{
   await renderUserPermissions();
 });
 $('bannerBtn').addEventListener('click', async ()=>{
+  if(!currentUser || currentUser.role!=='master_admin') return toast('Only Master Admin can manage the photo');
+  const entered=prompt('Enter password to open Photo / Banner upload:');
+  if(entered===null) return;
+  if(entered!=='admin'){ toast('Incorrect password'); return; }
   await renderBannerSettings();
 });
 
 const BANNER_BUCKET='ayalvasikal-banner';
 const BANNER_PATH='banner.jpg';
-function bannerPublicUrl(){
-  return `${URL}/storage/v1/object/public/${BANNER_BUCKET}/${BANNER_PATH}`;
+let bannerSlides=[];
+let bannerSlideIndex=0;
+let bannerSlideTimer=null;
+function bannerPublicUrl(path){
+  return `${URL}/storage/v1/object/public/${BANNER_BUCKET}/${encodeURIComponent(path)}`;
+}
+function startBannerSlideshow(){
+  if(bannerSlideTimer) clearInterval(bannerSlideTimer);
+  bannerSlideTimer=null;
+  if(bannerSlides.length<2)return;
+  bannerSlideTimer=setInterval(()=>{
+    const img=$('announcementImage'), panel=$('announcementPanel');
+    if(!img||!panel||panel.classList.contains('hidden'))return;
+    bannerSlideIndex=(bannerSlideIndex+1)%bannerSlides.length;
+    img.classList.remove('loaded');
+    img.onload=()=>{img.classList.add('loaded');panel.classList.remove('hidden');};
+    img.onerror=()=>{img.classList.remove('loaded');};
+    img.src=bannerPublicUrl(bannerSlides[bannerSlideIndex].name)+'?v='+Date.now();
+  },5000);
+}
+async function fetchBannerSlides(){
+  const headers={'apikey':KEY,'Content-Type':'application/json'};
+  const token=sessionStorage.getItem('ayalvasikal_access_token');
+  if(token)headers.Authorization='Bearer '+token;
+  const r=await fetch(`${URL}/storage/v1/object/list/${BANNER_BUCKET}`,{
+    method:'POST',headers,body:JSON.stringify({prefix:'banner-',limit:100,offset:0,sortBy:{column:'name',order:'asc'}})
+  });
+  if(!r.ok){
+    const raw=await r.text();
+    throw new Error(`Could not load banner list (${r.status}): ${raw}`);
+  }
+  const items=await r.json();
+  return (Array.isArray(items)?items:[])
+    .filter(x=>x&&x.name&&/^banner-.*\.jpg$/i.test(x.name))
+    .map(x=>({name:x.name}));
 }
 async function loadBanner(){
   const panel=$('announcementPanel'), img=$('announcementImage');
   if(!panel||!img)return;
-
   panel.classList.add('hidden');
   img.classList.remove('loaded');
   img.removeAttribute('src');
-
-  // The bucket must be public so normal Code-only users can see the same photo.
-  const url=bannerPublicUrl()+'?v='+Date.now();
-
-  img.onload=()=>{
-    img.classList.add('loaded');
-    panel.classList.remove('hidden');
-  };
-
-  img.onerror=()=>{
-    img.classList.remove('loaded');
-    panel.classList.add('hidden');
-  };
-
-  img.src=url;
+  try{
+    let slides=await fetchBannerSlides();
+    // Backwards compatibility: continue showing the original single banner.jpg if present.
+    if(!slides.length){
+      const oldUrl=bannerPublicUrl(BANNER_PATH)+'?v='+Date.now();
+      const ok=await new Promise(resolve=>{const test=new Image();test.onload=()=>resolve(true);test.onerror=()=>resolve(false);test.src=oldUrl;});
+      if(ok)slides=[{name:BANNER_PATH}];
+    }
+    bannerSlides=slides;
+    bannerSlideIndex=0;
+    if(!bannerSlides.length){if(bannerSlideTimer)clearInterval(bannerSlideTimer);bannerSlideTimer=null;return;}
+    img.onload=()=>{img.classList.add('loaded');panel.classList.remove('hidden');startBannerSlideshow();};
+    img.onerror=()=>{img.classList.remove('loaded');panel.classList.add('hidden');};
+    img.src=bannerPublicUrl(bannerSlides[0].name)+'?v='+Date.now();
+  }catch(e){
+    console.warn('Banner slideshow list could not load:',e);
+    // If list permission is unavailable, retain compatibility with the original banner.
+    img.onload=()=>{img.classList.add('loaded');panel.classList.remove('hidden');};
+    img.onerror=()=>{img.classList.remove('loaded');panel.classList.add('hidden');};
+    img.src=bannerPublicUrl(BANNER_PATH)+'?v='+Date.now();
+  }
 }
-
 async function renderBannerSettings(){
   if(!currentUser || currentUser.role!=='master_admin')return toast('Only Master Admin can manage the photo');
   showSetting('Photo / Banner',`
-    <div class="notice"><b>Dashboard Photo</b><br>Upload one photo here. It will appear at the top of the Master and User dashboards.</div>
-    <input id="bannerFile" type="file" accept="image/*" style="margin-top:12px;width:100%">
+    <div class="notice"><b>Dashboard Slideshow</b><br>Upload multiple photos. They will appear at the top of Master and User dashboards and change every 5 seconds.</div>
+    <input id="bannerFile" type="file" accept="image/*" multiple style="margin-top:12px;width:100%">
     <div id="bannerPreviewBox"></div>
     <div class="actions">
-      <button class="primary" type="button" id="uploadBannerBtn">⬆ Upload Photo</button>
-      <button class="secondary" type="button" id="deleteBannerBtn">🗑 Delete Photo</button>
+      <button class="primary" type="button" id="uploadBannerBtn">⬆ Upload Selected Photos</button>
+      <button class="secondary" type="button" id="deleteBannerBtn">🗑 Delete All Photos</button>
     </div>
-    <div class="small" style="margin-top:8px">
-  If no photo is uploaded, this area stays hidden.<br>
-  The photo is stored in Supabase Storage and is shown to Master + all Users.
-</div>
+    <div class="small" style="margin-top:8px">Photos are compressed before upload. Keep them reasonably small to reduce free-plan storage and bandwidth usage.</div>
   `);
   const preview=$('bannerPreviewBox');
-  const current=bannerPublicUrl()+'?v='+Date.now();
-  const im=new Image();
-  im.className='bannerPreview';
-  im.onload=()=>{preview.innerHTML='';preview.appendChild(im);};
-  im.onerror=()=>{preview.innerHTML='<div class="small" style="margin-top:10px">No photo uploaded.</div>';};
-  im.src=current;
+  try{
+    const slides=await fetchBannerSlides();
+    const display=slides.length?slides:[];
+    if(display.length){
+      preview.innerHTML=`<div class="small" style="margin-top:10px">${display.length} slideshow photo(s) saved.</div>`;
+      const im=new Image();im.className='bannerPreview';im.src=bannerPublicUrl(display[0].name)+'?v='+Date.now();preview.appendChild(im);
+    }else{
+      const old=new Image();old.className='bannerPreview';old.onload=()=>{preview.innerHTML='';preview.appendChild(old);};old.onerror=()=>{preview.innerHTML='<div class="small" style="margin-top:10px">No photo uploaded.</div>';};old.src=bannerPublicUrl(BANNER_PATH)+'?v='+Date.now();
+    }
+  }catch(e){preview.innerHTML='<div class="small" style="margin-top:10px">Could not list saved photos. Check Storage SELECT policy.</div>';}
   $('uploadBannerBtn').addEventListener('click',uploadBanner);
   $('deleteBannerBtn').addEventListener('click',deleteBanner);
 }
 async function compressBanner(file){
   if(!file)return null;
-  const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=window.URL.createObjectURL(file);});
+  const img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>{window.URL.revokeObjectURL(i.src);resolve(i);};i.onerror=reject;i.src=window.URL.createObjectURL(file);});
   const max=1600;
   const scale=Math.min(1,max/Math.max(img.width,img.height));
   const c=document.createElement('canvas'); c.width=Math.round(img.width*scale); c.height=Math.round(img.height*scale);
   const ctx=c.getContext('2d'); ctx.drawImage(img,0,0,c.width,c.height);
-  return await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',0.84));
+  return await new Promise(resolve=>c.toBlob(resolve,'image/jpeg',0.78));
 }
 async function uploadBanner(){
-  const file=$('bannerFile')?.files?.[0];
-  if(!file){toast('Please choose a photo first.');return;}
-  if(!currentUser || !(currentUser.role==='master_admin' || String(currentUser.username||'').toLowerCase()==='shafithuyyath')){
-    toast('Only Master Admin can upload the dashboard photo.');return;
-  }
+  const input=$('bannerFile');
+  const files=Array.from(input?.files||[]);
+  if(!files.length){toast('Please choose one or more photos first.');return;}
+  if(!currentUser || !(currentUser.role==='master_admin' || String(currentUser.username||'').toLowerCase()==='shafithuyyath')){toast('Only Master Admin can upload dashboard photos.');return;}
   const btn=$('uploadBannerBtn');
-  const originalText=btn?.textContent||'⬆ Upload Photo';
   if(btn){btn.disabled=true;btn.textContent='Uploading…';}
   try{
-    const blob=await compressBanner(file);
-    if(!blob) throw new Error('Could not prepare this image. Please choose another JPG or PNG photo.');
     const token=sessionStorage.getItem('ayalvasikal_access_token');
-    if(!token) throw new Error('Your login session is missing. Please log out and sign in again as Master Admin.');
-    const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}/${BANNER_PATH}`,{
-      method:'POST',
-      headers:{
-        'apikey':KEY,
-        'Authorization':'Bearer '+token,
-        'Content-Type':'image/jpeg',
-        'x-upsert':'true',
-        'cache-control':'3600'
-      },
-      body:blob
-    });
-    const raw=await r.text();
-    let j={};try{j=raw?JSON.parse(raw):{};}catch(_){j={message:raw};}
-    if(!r.ok){
-      const detail=j.message||j.error_description||j.error||j.msg||raw||`HTTP ${r.status} ${r.statusText}`;
-      console.error('Banner upload failed:',r.status,j);
-      throw new Error(`Upload failed (${r.status}): ${detail}`);
+    if(!token)throw new Error('Your login session is missing. Please log out and sign in again as Master Admin.');
+    let done=0;
+    for(const file of files){
+      if(!file.type.startsWith('image/'))throw new Error(`${file.name} is not an image file.`);
+      const blob=await compressBanner(file);
+      if(!blob)throw new Error(`Could not prepare ${file.name}. Please choose another photo.`);
+      const path=`banner-${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+      const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}/${path}`,{
+        method:'POST',headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'image/jpeg','cache-control':'3600'},body:blob
+      });
+      const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{};}catch(_){j={message:raw};}
+      if(!r.ok){const detail=j.message||j.error_description||j.error||j.msg||raw||`HTTP ${r.status} ${r.statusText}`;throw new Error(`Upload failed (${r.status}): ${detail}. Check the banner Storage policies.`);}
+      done++;
     }
     await loadBanner();
     await renderBannerSettings();
-    toast('✓ Photo uploaded successfully');
-  }catch(e){
-    console.error('Banner upload error:',e);
-    toast(e?.message||'Photo upload failed. Please try again.');
-  }finally{
-    const liveBtn=$('uploadBannerBtn');
-    if(liveBtn){liveBtn.disabled=false;liveBtn.textContent=originalText;}
-  }
+    toast(`✓ ${done} photo(s) uploaded successfully. Slideshow changes every 5 seconds.`);
+  }catch(e){console.error('Banner upload error:',e);toast(e?.message||'Photo upload failed. Please try again.');}
+  finally{const liveBtn=$('uploadBannerBtn');if(liveBtn){liveBtn.disabled=false;liveBtn.textContent='⬆ Upload Selected Photos';}}
 }
 async function deleteBanner(){
-  if(!confirm('Delete the dashboard photo?'))return;
-  const token=sessionStorage.getItem('ayalvasikal_access_token')||KEY;
+  if(!confirm('Delete all dashboard slideshow photos?'))return;
+  const token=sessionStorage.getItem('ayalvasikal_access_token');
+  if(!token)return toast('Your login session is missing. Please sign in again.');
   try{
     const r=await fetch(`${URL}/storage/v1/object/${BANNER_BUCKET}`,{
-      method:'DELETE',
-      headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({prefixes:[BANNER_PATH]})
+      method:'DELETE',headers:{'apikey':KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({prefixes:['banner-','banner.jpg']})
     });
-    const j=await r.json().catch(()=>({}));
-    if(!r.ok)return toast(j.message||j.error||'Photo delete failed. Check Storage setup.');
-    $('announcementPanel').classList.add('hidden');
-    await renderBannerSettings();
-    toast('✓ Photo deleted');
-  }catch(e){console.error(e);toast('Photo delete failed');}
+    const raw=await r.text();let j={};try{j=raw?JSON.parse(raw):{};}catch(_){j={message:raw};}
+    if(!r.ok)throw new Error(j.message||j.error||`Photo delete failed (${r.status}). Check Storage policies.`);
+    if(bannerSlideTimer)clearInterval(bannerSlideTimer);bannerSlideTimer=null;bannerSlides=[];
+    $('announcementPanel')?.classList.add('hidden');
+    await renderBannerSettings();toast('✓ All slideshow photos deleted');
+  }catch(e){console.error(e);toast(e?.message||'Photo delete failed');}
 }
 
 async function loadMembers(){
