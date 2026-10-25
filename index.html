@@ -164,45 +164,6 @@ body.masterMode #er{
 .userReportRow .monthName{font-weight:800}
 .userReportRow .monthRemark{font-size:12px;color:var(--muted);margin-top:3px}
 </style>
-
-<style>
-/* Ayalvasikal clean premium UI polish — CSS only, keeps existing features and data logic */
-:root{--ink:#152b2b;--muted:#718080;--line:#e4ece9;--accent:#0d756b;--bg:#f4f8f6}
-body{background:linear-gradient(155deg,#fbfdfc 0%,#f0f6f3 55%,#eef4f3 100%);color:var(--ink)}
-.top{padding-top:20px;padding-bottom:16px}
-.brand{letter-spacing:.25px;font-size:22px;color:#123c37}
-.gear{border-color:#dce8e3;box-shadow:0 4px 14px #173d3210;transition:transform .15s,box-shadow .15s}
-.gear:active,.primary:active,.secondary:active,.search:active{transform:scale(.98)}
-.totalGrid{gap:16px}
-.total{position:relative;overflow:hidden;border:1px solid #ffffff18;border-radius:22px;padding:25px;box-shadow:0 14px 34px #123d3218}
-.total:after{content:"";position:absolute;width:145px;height:145px;border:1px solid #ffffff18;border-radius:50%;right:-48px;top:-62px;pointer-events:none}
-.total.monthly{background:linear-gradient(135deg,#0c665e,#138477)}
-.label{letter-spacing:1.25px;opacity:.82}
-.value{font-size:clamp(30px,4vw,42px);line-height:1.15;overflow-wrap:anywhere}
-.search{border-radius:14px;background:linear-gradient(135deg,#0c756b,#159486);box-shadow:0 8px 20px #0f766e20;transition:transform .15s,box-shadow .15s}
-.card{border-color:#e1ebe6;border-radius:18px;box-shadow:0 7px 22px #173d3208}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:#58aaa0;box-shadow:0 0 0 3px #0f766e14;background:#fff}
-.primary{background:linear-gradient(135deg,#0c756b,#12877a);box-shadow:0 5px 13px #0f766e1a}
-.secondary{background:#edf4f1;color:#25443d;border:1px solid #e0eae5}
-.menu{border:1px solid #e7efeb;background:#f8fbf9}
-.menu:hover{background:#eaf5f0}
-.month{border-color:#dce8e3}.month.on{background:#dff3ec;border-color:#8bcbb9;color:#075e52}
-.dashboardBanner{max-height:280px;object-fit:contain;background:#fff;border:1px solid #e1ebe6;border-radius:17px;box-shadow:0 9px 25px #173d320d}
-#announcementPanel{padding:8px 0 14px}
-.bannerPreview{object-fit:contain;background:#f7faf8}
-.receipt{border-color:#c7d8d1;box-shadow:0 8px 24px #173d3208}
-.reportTable th{background:#edf5f1;color:#21443b}
-.status-ok{background:#16845d}.status-no{background:#c63f48}
-.toast{background:#123d37;box-shadow:0 8px 25px #0002}
-@media(max-width:650px){
- .top{padding:13px 12px}.brand{font-size:19px}.wrap{padding:4px 12px 32px}
- .totalGrid{grid-template-columns:1fr;gap:11px}.total{padding:20px;border-radius:18px}
- .value{font-size:34px}.dashboardBanner{max-height:210px;width:100%;object-fit:contain}
- .search{margin:12px 0;padding:14px}.card{padding:14px;border-radius:15px}
-}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
-</style>
-
 </head>
 <body><script>
 // Settings must work independently of Supabase loading.
