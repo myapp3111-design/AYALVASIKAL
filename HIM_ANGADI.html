@@ -1,0 +1,71 @@
+<!doctype html><n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HIM ANGADI</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f3f7f7;color:#172b3a;font:15px Arial}header,main{max-width:1050px;margin:auto;padding:16px}header{display:flex;justify-content:space-between;align-items:center}.card{background:white;border:1px solid #e2e8ed;border-radius:16px;padding:16px;margin:12px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px}label{font-size:12px;font-weight:bold;color:#657487}input,select,textarea{padding:11px;border:1px solid #dce4e9;border-radius:10px;font:inherit;width:100%}button{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-weight:bold}.primary{background:#0f766e;color:white}.secondary{background:#eaf0f2;color:#263b49}.actions,.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.active{background:#0f766e;color:white}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:#102a43;color:white;border-radius:12px;padding:15px}.stat b{display:block;font-size:22px;margin-top:6px}.hint{background:#eff7f5;padding:10px;border-radius:9px;font-size:13px;margin:10px 0}.hidden{display:none!important}.full{grid-column:1/-1}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;min-width:700px}th,td{text-align:left;padding:9px;border-bottom:1px solid #e6ebf0;font-size:13px}th{background:#f2f5f7}@media(max-width:650px){.grid,.stats{grid-template-columns:1fr}.full{grid-column:auto}header,main{padding:10px}}
+</style></head><body><header><h2>HIM ANGADI</h2><button class="secondary" onclick="history.back()">← Back</button></header><main>
+<div id="gate" class="card hidden"><b>Master Admin login required.</b><p>Open this page in the same browser session after signing in to Ayalvasikal as Master Admin.</p></div>
+<div id="app" class="hidden">
+<div class="stats"><div class="stat">Total Yearly Amount<b id="dueTotal">0.00</b></div><div class="stat">Total Received<b id="paidTotal">0.00</b></div><div class="stat">Balance<b id="balanceTotal">0.00</b></div></div>
+<div class="tabs"><button class="secondary active" data-tab="entry">＋ Entry</button><button class="secondary" data-tab="report">📊 Report</button><button class="secondary" data-tab="masters">Master Lists</button></div>
+<section id="entry" class="card"><h3>Entry Form</h3><div class="grid">
+<div class="field"><label>Entry Date (Automatic)</label><input id="date" type="date" readonly></div>
+<div class="field"><label>Name (Ayalvasikal Master Name)</label><select id="person"><option value="">Loading…</option></select></div>
+<div class="field"><label>Country</label><input id="country" list="countriesList"><datalist id="countriesList"></datalist></div>
+<div class="field"><label>Currency</label><input id="currency" list="currenciesList"></div>
+<div class="field"><label>Year</label><input id="year" type="number" min="2000" max="2100"></div>
+<div class="field"><label>Yearly Amount (due for this year)</label><input id="yearly" type="number" min="0" step=".01"></div>
+<div class="field"><label>Amount (paying now)</label><input id="amount" type="number" min="0" step=".01"></div>
+<div class="field"><label>In Hand (who holds this money?)</label><input id="holder" list="holdersList"><datalist id="holdersList"></datalist></div>
+<div class="field full"><label>Remarks</label><textarea id="remarks" rows="2"></textarea></div></div>
+<div class="actions"><button class="primary" id="save">💾 Save Entry</button><button class="secondary" id="clear">Clear</button></div>
+<div class="hint">Yearly Amount is recorded once per person/year. Each Amount entered creates a separate payment. Balance = Yearly Amount − total payments.</div></section>
+<section id="report" class="card hidden"><h3>Reports</h3><div class="grid">
+<div class="field"><label>Search Name</label><input id="searchName" placeholder="Name"></div><div class="field"><label>Year</label><select id="fYear"><option value="">All years</option></select></div>
+<div class="field"><label>Country</label><select id="fCountry"><option value="">All countries</option></select></div><div class="field"><label>Currency</label><select id="fCurrency"><option value="">All currencies</option></select></div><div class="field"><label>In Hand</label><select id="fHolder"><option value="">All</option></select></div></div>
+<div class="actions"><button class="primary" id="run">Show Report</button><button class="secondary" onclick="window.print()">Print</button></div><div id="totals" class="hint"></div>
+<div class="scroll"><table><thead><tr><th>Name</th><th>Year</th><th>Country</th><th>Currency</th><th>Yearly Amount</th><th>Paid</th><th>Balance</th><th>In Hand</th></tr></thead><tbody id="dueRows"></tbody></table></div>
+<h3>Payment History</h3><div class="scroll"><table><thead><tr><th>Date</th><th>Name</th><th>Year</th><th>Amount</th><th>In Hand</th><th>Remarks</th></tr></thead><tbody id="payRows"></tbody></table></div></section>
+<section id="masters" class="card hidden"><h3>Saved Master Values</h3><div class="grid"><div><b>Countries</b><div id="countryValues"></div></div><div><b>Currencies</b><div id="currencyValues"></div></div><div><b>In Hand Names</b><div id="holderValues"></div></div></div><p class="hint">New values typed in the Entry Form are saved automatically and suggested next time.</p></section></div></main><div id="toast" style="display:none;position:fixed;bottom:15px;left:10%;width:80%;background:#102a2a;color:white;padding:12px;border-radius:10px"></div>
+<script>
+const URL='https://lfyejyjwyoovocsrolma.supabase.co',KEY='sb_publishable_SR_WZ5siIOFLTy5az-Qemw_0rTfVW-G', $=id=>document.getElementById(id);
+let people=[],dues=[],payments=[],lists={countries:[],currencies:[],holders:[]};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt=n=>Number(n||0).toFixed(2);
+function say(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',3000)}
+function masterSession(){try{let u=JSON.parse(sessionStorage.getItem('ayalvasikal_user')||'null');return u&&(u.role==='master_admin'||u.username==='shafithuyyath')&&sessionStorage.getItem('ayalvasikal_access_token')}catch(e){return false}}
+async function api(path,opt={}){let token=sessionStorage.getItem('ayalvasikal_access_token');let r=await fetch(URL+'/rest/v1/'+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',...(opt.headers||{})}});let t=await r.text(),j;try{j=t?JSON.parse(t):null}catch(e){j=t}if(!r.ok)throw Error(j?.message||j?.details||JSON.stringify(j));return j}
+const get=(t,q='select=*')=>api(t+'?'+q),post=(t,row)=>api(t,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(row)}),patch=(t,q,row)=>api(t+'?'+q,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(row)});
+function datalist(id,a){$(id).innerHTML=a.map(x=>`<option value="${esc(x)}">`).join('')}
+function options(id,a,first){let old=$(id).value;$(id).innerHTML=`<option value="">${first}</option>`+a.map(x=>`<option>${esc(x)}</option>`).join('');$(id).value=old}
+function paid(code,yr){return payments.filter(x=>x.member_code===code&&+x.year===+yr).reduce((s,x)=>s+ +x.amount,0)}
+async function load(){
+ people=await get('members','select=code,name&order=name.asc');dues=await get('him_angadi_yearly_dues','select=*&order=year.desc');payments=await get('him_angadi_payments','select=*&order=entry_date.desc');
+ let v=await get('him_angadi_master_values','select=*&order=value.asc');lists={countries:[],currencies:[],holders:[]};v.forEach(x=>lists[x.category]?.push(x.value));
+ $('person').innerHTML='<option value="">Select name</option>'+people.map(x=>`<option value="${esc(x.code)}">${esc(x.name)} — ${esc(x.code)}</option>`).join('');
+ datalist('countriesList',lists.countries);datalist('currenciesList',lists.currencies);datalist('holdersList',lists.holders);
+ $('countryValues').innerHTML=lists.countries.map(x=>`<p>${esc(x)}</p>`).join('');$('currencyValues').innerHTML=lists.currencies.map(x=>`<p>${esc(x)}</p>`).join('');$('holderValues').innerHTML=lists.holders.map(x=>`<p>${esc(x)}</p>`).join('');
+ $('dueTotal').textContent=fmt(dues.reduce((s,x)=>s+ +x.yearly_amount,0));$('paidTotal').textContent=fmt(payments.reduce((s,x)=>s+ +x.amount,0));$('balanceTotal').textContent=fmt(dues.reduce((s,x)=>s+ +x.yearly_amount,0)-payments.reduce((s,x)=>s+ +x.amount,0));
+ options('fYear',[...new Set(dues.map(x=>String(x.year)))].sort().reverse(),'All years');options('fCountry',[...new Set(dues.map(x=>x.country).filter(Boolean))].sort(),'All countries');options('fCurrency',[...new Set(dues.map(x=>x.currency).filter(Boolean))].sort(),'All currencies');options('fHolder',[...new Set(payments.map(x=>x.in_hand).filter(Boolean))].sort(),'All holders');
+}
+async function saveList(category,value){value=(value||'').trim();if(value&&!lists[category].some(x=>x.toLowerCase()===value.toLowerCase()))await post('him_angadi_master_values',{category,value})}
+async function saveEntry(){
+ let code=$('person').value,p=people.find(x=>x.code===code),yr=+$('year').value,due=+$('yearly').value,amt=+$('amount').value,country=$('country').value.trim(),currency=$('currency').value.trim(),holder=$('holder').value.trim();
+ if(!p)return say('Select a name.');if(!Number.isInteger(yr)||yr<2000||yr>2100)return say('Enter a valid year.');if(due<0||amt<0||!Number.isFinite(due)||!Number.isFinite(amt))return say('Check amounts.');if(!currency)return say('Currency is required.');
+ try{
+ await saveList('countries',country);await saveList('currencies',currency);await saveList('holders',holder);
+ let old=dues.find(x=>x.member_code===code&&+x.year===yr),row={member_code:code,member_name:p.name,year:yr,yearly_amount:due,country:country||null,currency};
+ if(old)await patch('him_angadi_yearly_dues','id=eq.'+old.id,row);else await post('him_angadi_yearly_dues',row);
+ if(amt>0)await post('him_angadi_payments',{entry_date:$('date').value,member_code:code,member_name:p.name,year:yr,amount:amt,in_hand:holder||null,remarks:$('remarks').value.trim()||null,country:country||null,currency});
+ await load();clear();say('Entry saved.');}catch(e){say('Save failed: '+e.message)}
+}
+function clear(){ $('date').value=new Date().toLocaleDateString('en-CA');$('year').value=new Date().getFullYear();['person','country','currency','yearly','amount','holder','remarks'].forEach(x=>$(x).value='')}
+function report(){
+ let q=$('searchName').value.toLowerCase(),yr=$('fYear').value,c=$('fCountry').value,cur=$('fCurrency').value,h=$('fHolder').value;
+ let rows=dues.filter(d=>(!q||d.member_name.toLowerCase().includes(q))&&(!yr||''+d.year===yr)&&(!c||d.country===c)&&(!cur||d.currency===cur)&&(!h||payments.some(p=>p.member_code===d.member_code&&+p.year===+d.year&&p.in_hand===h)));
+ let td=0,tp=0;$('dueRows').innerHTML=rows.map(d=>{let p=paid(d.member_code,d.year),b=+d.yearly_amount-p;td+=+d.yearly_amount;tp+=p;let hands=[...new Set(payments.filter(x=>x.member_code===d.member_code&&+x.year===+d.year).map(x=>x.in_hand).filter(Boolean))].join(', ');return `<tr><td>${esc(d.member_name)}</td><td>${d.year}</td><td>${esc(d.country||'')}</td><td>${esc(d.currency)}</td><td>${fmt(d.yearly_amount)}</td><td>${fmt(p)}</td><td>${fmt(b)}</td><td>${esc(hands||'—')}</td></tr>`}).join('')||'<tr><td colspan="8">No records</td></tr>';
+ $('totals').innerHTML=`Due: <b>${fmt(td)}</b> | Received: <b>${fmt(tp)}</b> | Balance: <b>${fmt(td-tp)}</b>`;
+ let ps=payments.filter(x=>(!q||x.member_name.toLowerCase().includes(q))&&(!yr||''+x.year===yr)&&(!h||x.in_hand===h)&&(!cur||x.currency===cur)&&(!c||x.country===c));
+ $('payRows').innerHTML=ps.map(x=>`<tr><td>${esc(x.entry_date)}</td><td>${esc(x.member_name)}</td><td>${x.year}</td><td>${fmt(x.amount)} ${esc(x.currency)}</td><td>${esc(x.in_hand||'—')}</td><td>${esc(x.remarks||'')}</td></tr>`).join('')||'<tr><td colspan="6">No payments</td></tr>';
+}
+document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));['entry','report','masters'].forEach(id=>$(id).classList.toggle('hidden',id!==b.dataset.tab));if(b.dataset.tab==='report')report()});
+$('save').onclick=saveEntry;$('clear').onclick=clear;$('run').onclick=report;$('searchName').oninput=report;
+(async()=>{if(!masterSession()){$('gate').classList.remove('hidden');return}$('app').classList.remove('hidden');clear();try{await load()}catch(e){say('Supabase setup pending: '+e.message)}})();
+</script></body></html>
