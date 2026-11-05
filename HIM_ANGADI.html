@@ -30,8 +30,8 @@ let people=[],dues=[],payments=[],lists={countries:[],currencies:[],holders:[]};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=n=>Number(n||0).toFixed(2);
 function say(t){$('toast').textContent=t;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',3000)}
-function masterSession(){try{let u=JSON.parse(sessionStorage.getItem('ayalvasikal_user')||'null');return u&&(u.role==='master_admin'||u.username==='shafithuyyath')&&sessionStorage.getItem('ayalvasikal_access_token')}catch(e){return false}}
-async function api(path,opt={}){let token=sessionStorage.getItem('ayalvasikal_access_token');let r=await fetch(URL+'/rest/v1/'+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',...(opt.headers||{})}});let t=await r.text(),j;try{j=t?JSON.parse(t):null}catch(e){j=t}if(!r.ok)throw Error(j?.message||j?.details||JSON.stringify(j));return j}
+function masterSession(){try{let u=JSON.parse(localStorage.getItem('ayalvasikal_user')||'null');return u&&(u.role==='master_admin'||u.username==='shafithuyyath')&&localStorage.getItem('ayalvasikal_access_token')}catch(e){return false}}
+async function api(path,opt={}){let token=localStorage.getItem('ayalvasikal_access_token');let r=await fetch(URL+'/rest/v1/'+path,{...opt,headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json',...(opt.headers||{})}});let t=await r.text(),j;try{j=t?JSON.parse(t):null}catch(e){j=t}if(!r.ok)throw Error(j?.message||j?.details||JSON.stringify(j));return j}
 const get=(t,q='select=*')=>api(t+'?'+q),post=(t,row)=>api(t,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(row)}),patch=(t,q,row)=>api(t+'?'+q,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(row)});
 function datalist(id,a){$(id).innerHTML=a.map(x=>`<option value="${esc(x)}">`).join('')}
 function options(id,a,first){let old=$(id).value;$(id).innerHTML=`<option value="">${first}</option>`+a.map(x=>`<option>${esc(x)}</option>`).join('');$(id).value=old}
